@@ -36,6 +36,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# uploaded and signed PDFs held by the local storage adapter
+/.storage
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/app/generated/prisma

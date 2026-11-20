@@ -1,0 +1,473 @@
+// Harlow & Vance — legal matter workspace and document signing.
+//
+// Four rules this schema exists to enforce:
+//
+//   1. Document versions are append-only. A correction adds a version; nothing
+//      that was once stored is overwritten or deleted.
+//   2. Secure links store only a hash of their token. The token itself is shown
+//      once, in the email, and is never recoverable from the database.
+//   3. A signature request points at one immutable DocumentVersion, so later
+//      uploads can never change what a client actually signed.
+//   4. ActivityEvent is append-only and is written in the same transaction as
+//      the change it records, so the history cannot drift from the data.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN
+}
+
+enum ClientType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum MatterStatus {
+  ACTIVE
+  ON_HOLD
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum DocumentFolder {
+  CONTRACTS
+  CLIENT_UPLOADS
+  SIGNED
+}
+
+/// PENDING             the client has been asked and has not uploaded yet
+/// SUBMITTED           a file is in and is waiting for the Admin to review it
+/// CHANGES_REQUESTED   the Admin asked for a new copy; the old one is kept
+/// ACCEPTED            the Admin is satisfied; the request is closed
+enum DocumentRequestStatus {
+  PENDING
+  SUBMITTED
+  CHANGES_REQUESTED
+  ACCEPTED
+}
+
+/// Forward-only while live: SENT -> VIEWED -> STARTED -> SIGNED.
+/// REVOKED and EXPIRED are terminal and can be reached from any live state.
+enum SignatureStatus {
+  SENT
+  VIEWED
+  STARTED
+  SIGNED
+  REVOKED
+  EXPIRED
+}
+
+enum SecureLinkPurpose {
+  UPLOAD
+  SIGN
+}
+
+enum SignatureMethod {
+  DRAWN
+  TYPED
+}
+
+enum ActorType {
+  ADMIN
+  CLIENT
+  SYSTEM
+}
+
+enum ActivityType {
+  MATTER
+  DOCUMENT
+  REQUEST
+  SIGNATURE
+  TASK
+  NOTE
+}
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// The firm and its people
+// ---------------------------------------------------------------------------
+
+/// The firm itself. One row by design: the brief describes a single firm with a
+/// single Admin. Tenant-scoped tables still carry firmId, so supporting more
+/// than one firm later is a query-scoping and authorisation change rather than
+/// a migration.
+model Firm {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  createdAt DateTime @default(now())
+
+  users         User[]
+  clients       Client[]
+  matters       Matter[]
+  notifications Notification[]
+  emails        EmailMessage[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  firmId       String
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(ADMIN)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  firm     Firm      @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@index([firmId])
+}
+
+/// Admin sessions. Like secure links, only a hash of the session token is
+/// stored, so a database leak does not hand over live sessions.
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Clients never have accounts. They are records the firm keeps, and they act
+/// only through the secure links sent to this email address.
+model Client {
+  id          String     @id @default(cuid())
+  firmId      String
+  name        String
+  type        ClientType @default(INDIVIDUAL)
+  contactName String?
+  email       String
+  phone       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  firm    Firm     @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  matters Matter[]
+
+  @@index([firmId])
+  @@index([firmId, name])
+}
+
+// ---------------------------------------------------------------------------
+// Matters
+// ---------------------------------------------------------------------------
+
+model Matter {
+  id           String       @id @default(cuid())
+  firmId       String
+  clientId     String
+  reference    String
+  title        String
+  practiceArea String
+  status       MatterStatus @default(ACTIVE)
+  priority     Priority     @default(MEDIUM)
+  openedAt     DateTime     @default(now())
+  deadline     DateTime?
+  /// Archiving is reversible and keeps every document and event. Matters are
+  /// never hard-deleted.
+  archivedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  firm   Firm   @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  /// Restrict: a client with matters cannot be deleted out from under them.
+  client Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  keyDates          MatterKeyDate[]
+  tasks             Task[]
+  notes             Note[]
+  documents         Document[]
+  documentRequests  DocumentRequest[]
+  signatureRequests SignatureRequest[]
+  activity          ActivityEvent[]
+  notifications     Notification[]
+
+  @@unique([firmId, reference])
+  @@index([firmId, status])
+  @@index([clientId])
+  @@index([deadline])
+}
+
+model MatterKeyDate {
+  id       String   @id @default(cuid())
+  matterId String
+  label    String
+  date     DateTime
+
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([matterId, date])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  matterId    String
+  title       String
+  dueDate     DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([matterId, completedAt])
+  @@index([dueDate])
+}
+
+/// Internal only. Notes are never exposed on any client-facing route.
+model Note {
+  id         String   @id @default(cuid())
+  matterId   String
+  body       String
+  authorName String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([matterId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Documents
+// ---------------------------------------------------------------------------
+
+/// A document is a named slot in a matter. Its content lives in versions.
+model Document {
+  id        String         @id @default(cuid())
+  matterId  String
+  folder    DocumentFolder
+  name      String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  matter   Matter            @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  versions DocumentVersion[]
+
+  /// Set when this document is a client's answer to a request.
+  submittedForRequest DocumentRequest?
+  /// Set when this document is the signed output of a signature request.
+  signedForRequest    SignatureRequest?
+
+  @@index([matterId, folder])
+  @@index([matterId, name])
+}
+
+/// Immutable. There is no updatedAt here on purpose: a version is written once
+/// and never changed. Corrections and re-uploads add the next versionNo.
+model DocumentVersion {
+  id             String    @id @default(cuid())
+  documentId     String
+  versionNo      Int
+  /// Key in the storage adapter. Unique so two versions can never be made to
+  /// point at the same bytes by accident.
+  storageKey     String    @unique
+  /// SHA-256 of the stored bytes, recorded at upload time. It is what the
+  /// signing certificate cites, and what proves the file has not changed.
+  sha256         String
+  byteSize       Int
+  mimeType       String    @default("application/pdf")
+  uploadedByType ActorType
+  uploadedByName String
+  createdAt      DateTime  @default(now())
+
+  document          Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  signatureRequests SignatureRequest[]
+
+  @@unique([documentId, versionNo])
+  @@index([sha256])
+}
+
+// ---------------------------------------------------------------------------
+// Asking the client for documents
+// ---------------------------------------------------------------------------
+
+model DocumentRequest {
+  id          String                @id @default(cuid())
+  matterId    String
+  title       String
+  description String
+  status      DocumentRequestStatus @default(PENDING)
+  dueDate     DateTime?
+  /// What the Admin asked to be corrected, shown to the client on the upload page.
+  reviewNote  String?
+  /// The document the client uploaded. Kept when changes are requested: the new
+  /// upload becomes the next version of this same document.
+  submittedDocumentId String? @unique
+  requestedAt DateTime  @default(now())
+  submittedAt DateTime?
+  resolvedAt  DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  matter            Matter       @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  submittedDocument Document?    @relation(fields: [submittedDocumentId], references: [id], onDelete: SetNull)
+  links             SecureLink[]
+
+  @@index([matterId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Signing
+// ---------------------------------------------------------------------------
+
+/// One signer per document version, as the brief scopes it.
+model SignatureRequest {
+  id String @id @default(cuid())
+
+  matterId String
+  /// The exact version being signed. Restrict, because a signed version must
+  /// stay in the database for as long as the signature record refers to it.
+  documentVersionId String
+
+  signerName  String
+  signerEmail String
+
+  status SignatureStatus @default(SENT)
+
+  sentAt        DateTime  @default(now())
+  viewedAt      DateTime?
+  startedAt     DateTime?
+  signedAt      DateTime?
+  revokedAt     DateTime?
+  revokedReason String?
+  /// After this moment the link stops working, whatever the status says.
+  expiresAt     DateTime
+
+  /// Captured at the moment of signing, for the certificate of completion.
+  signatureMethod SignatureMethod?
+  signerIp        String?
+  signerUserAgent String?
+
+  /// The flattened PDF with the signature and certificate page.
+  signedDocumentId String? @unique
+  signedSha256     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  matter          Matter          @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  documentVersion DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
+  signedDocument  Document?       @relation(fields: [signedDocumentId], references: [id], onDelete: SetNull)
+  links           SecureLink[]
+
+  @@index([matterId, status])
+  @@index([documentVersionId])
+  @@index([expiresAt])
+}
+
+/// A single-purpose, expiring, revocable capability sent by email.
+///
+/// The token is 32 random bytes. It is hashed with SECURE_LINK_PEPPER before it
+/// is stored, so this table cannot be used to reconstruct a working link. A link
+/// carries no identity of its own: it grants exactly one action on exactly one
+/// target, and the server re-checks purpose, expiry, revocation and use on every
+/// request.
+model SecureLink {
+  id        String            @id @default(cuid())
+  purpose   SecureLinkPurpose
+  tokenHash String            @unique
+
+  documentRequestId  String?
+  signatureRequestId String?
+
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  /// Set when a one-shot link has been spent. Signing links are one-shot;
+  /// upload links stay usable until the request is accepted.
+  usedAt     DateTime?
+  lastSeenAt DateTime?
+  lastSeenIp String?
+  createdAt  DateTime  @default(now())
+
+  documentRequest  DocumentRequest?  @relation(fields: [documentRequestId], references: [id], onDelete: Cascade)
+  signatureRequest SignatureRequest? @relation(fields: [signatureRequestId], references: [id], onDelete: Cascade)
+
+  @@index([documentRequestId])
+  @@index([signatureRequestId])
+  @@index([expiresAt])
+}
+
+// ---------------------------------------------------------------------------
+// History, notifications, email
+// ---------------------------------------------------------------------------
+
+/// Append-only. Written in the same transaction as the change it describes.
+/// Nothing in the application updates or deletes rows in this table.
+model ActivityEvent {
+  id        String       @id @default(cuid())
+  matterId  String
+  type      ActivityType
+  summary   String
+  actorType ActorType
+  actorName String
+  metadata  Json?
+  createdAt DateTime     @default(now())
+
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([matterId, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  firmId    String
+  matterId  String?
+  text      String
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  firm   Firm    @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  matter Matter? @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([firmId, readAt])
+  @@index([firmId, createdAt])
+}
+
+/// Every message the app sends. In development this table is the mailbox and
+/// the app renders it, so the whole email flow is reviewable without an SMTP
+/// server; in production the same rows are the delivery log.
+model EmailMessage {
+  id        String      @id @default(cuid())
+  firmId    String
+  to        String
+  subject   String
+  body      String
+  status    EmailStatus @default(QUEUED)
+  sentAt    DateTime?
+  error     String?
+  createdAt DateTime    @default(now())
+
+  firm Firm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  @@index([firmId, createdAt])
+}

@@ -1,26 +1,194 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+  Harlow & Vance design tokens.
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  Every colour in the application comes from one of these variables. Components
+  never hold a raw hex value, which is what keeps light and dark consistent and
+  makes a palette change a one-file edit.
+
+  Light values live on :root. Dark values are declared twice on purpose: once
+  under prefers-color-scheme for people who never touch a theme switch, and once
+  under [data-theme="dark"] so an explicit choice wins over the OS setting.
+*/
+
+:root {
+  --bg: #f1f4f2;
+  --surface: #ffffff;
+  --surface-2: #e8edea;
+  --line: #d4dcd8;
+  --line-strong: #b6c2bd;
+
+  --fg: #13201a;
+  --muted: #55645e;
+  --faint: #7a8983;
+
+  --accent: #1e5a47;
+  --accent-hover: #164536;
+  --accent-fg: #ffffff;
+  --accent-soft: #dceae3;
+
+  --ok: #1c6a3a;
+  --ok-bg: #dcefe2;
+  --info: #1f4e89;
+  --info-bg: #dfe9f6;
+  --warn: #8c5000;
+  --warn-bg: #f8ead2;
+  --danger: #ae271c;
+  --danger-bg: #f9e2df;
+  --neutral: #4b5752;
+  --neutral-bg: #e5eae7;
+
+  /* The sheet a document is rendered on, which stays paper-like in both themes. */
+  --paper: #fffefb;
+  --paper-ink: #1e2622;
+  --paper-line: #e2dfd7;
+  --signature-ink: #1b2b4f;
+
+  --shadow-card: 0 1px 2px rgb(19 32 26 / 0.06), 0 10px 30px rgb(19 32 26 / 0.1);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --bg: #0e1412;
+    --surface: #151d1a;
+    --surface-2: #1c2622;
+    --line: #28342f;
+    --line-strong: #3a4842;
+
+    --fg: #e4ece8;
+    --muted: #97a7a0;
+    --faint: #73837c;
+
+    --accent: #62b595;
+    --accent-hover: #7cc7aa;
+    --accent-fg: #0a1410;
+    --accent-soft: #1a3a2f;
+
+    --ok: #7acb94;
+    --ok-bg: #12301d;
+    --info: #8fb7ea;
+    --info-bg: #15263a;
+    --warn: #edb45c;
+    --warn-bg: #382810;
+    --danger: #ee8a80;
+    --danger-bg: #3a1714;
+    --neutral: #b3bfba;
+    --neutral-bg: #222c28;
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.35);
+
+    color-scheme: dark;
   }
 }
 
+:root[data-theme="dark"] {
+  --bg: #0e1412;
+  --surface: #151d1a;
+  --surface-2: #1c2622;
+  --line: #28342f;
+  --line-strong: #3a4842;
+
+  --fg: #e4ece8;
+  --muted: #97a7a0;
+  --faint: #73837c;
+
+  --accent: #62b595;
+  --accent-hover: #7cc7aa;
+  --accent-fg: #0a1410;
+  --accent-soft: #1a3a2f;
+
+  --ok: #7acb94;
+  --ok-bg: #12301d;
+  --info: #8fb7ea;
+  --info-bg: #15263a;
+  --warn: #edb45c;
+  --warn-bg: #382810;
+  --danger: #ee8a80;
+  --danger-bg: #3a1714;
+  --neutral: #b3bfba;
+  --neutral-bg: #222c28;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.35);
+
+  color-scheme: dark;
+}
+
+/* Exposes the tokens above as Tailwind utilities: bg-surface, text-muted,
+   border-line, and so on. `inline` keeps the var() reference, so the utilities
+   follow the theme instead of being frozen at build time. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-neutral: var(--neutral);
+  --color-neutral-bg: var(--neutral-bg);
+
+  --color-paper: var(--paper);
+  --color-paper-ink: var(--paper-ink);
+  --color-paper-line: var(--paper-line);
+  --color-signature-ink: var(--signature-ink);
+
+  --font-sans: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, Consolas, monospace;
+
+  --shadow-card: var(--shadow-card);
+
+  --radius-card: 0.75rem;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Headings carry the serif: it is what makes the workspace read as a law firm
+   rather than a generic dashboard. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  text-wrap: balance;
+}
+
+/* Columns of figures and dates should line up. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
