@@ -44,7 +44,7 @@ export function MatterFilters() {
 
   return (
     <div className="flex flex-wrap items-center gap-2.5">
-      <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-line bg-surface px-2.5 text-muted focus-within:border-accent sm:max-w-[360px]">
+      <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-line bg-surface px-2.5 text-muted focus-within:border-muted sm:max-w-[360px]">
         <Icon name="search" />
         <span className="sr-only">Search matters</span>
         <input

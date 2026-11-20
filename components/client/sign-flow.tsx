@@ -337,7 +337,7 @@ export function SignFlow({
                       noteStarted();
                     }}
                     autoComplete="name"
-                    className="rounded-lg border border-line bg-surface px-2.5 py-2 font-normal focus:border-accent focus:outline-none"
+                    className="rounded-lg border border-line bg-surface px-2.5 py-2 font-normal focus:border-muted focus:outline-none"
                   />
                 </label>
                 <div

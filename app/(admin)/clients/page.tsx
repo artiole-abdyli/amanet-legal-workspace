@@ -5,9 +5,13 @@ import { Icon } from "@/components/icons";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, EmptyState, PageHeader } from "@/components/ui/card";
-import { SearchField } from "@/components/ui/search-field";
+import { ClientFilters } from "@/components/clients/client-filters";
 import { SkeletonTable } from "@/components/ui/skeleton";
-import { getClientWaitingCounts, getClients } from "@/lib/queries";
+import {
+  getClientWaitingCounts,
+  getClients,
+  type ClientFilters as Filters,
+} from "@/lib/queries";
 
 export const metadata = { title: "Clients" };
 
@@ -17,11 +21,14 @@ async function ClientsTable({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await searchParams;
-  const raw = params.q;
-  const query = (Array.isArray(raw) ? raw[0] : raw)?.trim() || undefined;
+  const one = (value: string | string[] | undefined) =>
+    Array.isArray(value) ? value[0] : value;
+
+  const query = one(params.q)?.trim() || undefined;
+  const type = one(params.type) as Filters["type"];
 
   const [clients, waiting] = await Promise.all([
-    getClients(query),
+    getClients({ query, type }),
     getClientWaitingCounts(),
   ]);
 
@@ -30,13 +37,30 @@ async function ClientsTable({
       <Card>
         <EmptyState
           icon="users"
-          title={query ? `No clients match “${query}”` : "No clients yet"}
-          description="Add the client first, then open a matter for them."
+          title={
+            query || type
+              ? "No clients match these filters"
+              : "No clients yet"
+          }
+          description={
+            query || type
+              ? "Try a different search, or clear the filters to see everyone."
+              : "Add the client first, then open a matter for them."
+          }
           action={
-            <Link href="/clients/new" className={buttonClasses("primary", "sm")}>
-              <Icon name="plus" />
-              New client
-            </Link>
+            query || type ? (
+              <Link href="/clients" className={buttonClasses("default", "sm")}>
+                Clear filters
+              </Link>
+            ) : (
+              <Link
+                href="/clients/new"
+                className={buttonClasses("primary", "sm")}
+              >
+                <Icon name="plus" />
+                New client
+              </Link>
+            )
           }
         />
       </Card>
@@ -150,10 +174,7 @@ export default function ClientsPage({
       />
 
       <Suspense fallback={<div className="h-10" />}>
-        <SearchField
-          label="Search clients"
-          placeholder="Search by name or email"
-        />
+        <ClientFilters />
       </Suspense>
 
       <Suspense fallback={<SkeletonTable rows={4} />}>

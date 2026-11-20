@@ -23,7 +23,7 @@ export async function TasksNotesTab({ matterId }: { matterId: string }) {
   const open = tasks.filter((task) => !task.completedAt);
   const done = tasks.filter((task) => task.completedAt);
   const inputClass =
-    "min-w-0 rounded-lg border border-line bg-surface px-2.5 py-2 focus:border-accent focus:outline-none";
+    "min-w-0 rounded-lg border border-line bg-surface px-2.5 py-2 focus:border-muted focus:outline-none";
 
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[1.45fr_minmax(0,1fr)]">

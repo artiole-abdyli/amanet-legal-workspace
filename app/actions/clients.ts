@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/auth";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -32,6 +34,7 @@ export async function createClient(
   _previous: ClientFormState,
   formData: FormData,
 ): Promise<ClientFormState> {
+  await requireAdmin();
   const input = read(formData);
   const error = validate(input);
   if (error) return { error };
@@ -48,6 +51,7 @@ export async function updateClient(
   _previous: ClientFormState,
   formData: FormData,
 ): Promise<ClientFormState> {
+  await requireAdmin();
   const input = read(formData);
   const error = validate(input);
   if (error) return { error };

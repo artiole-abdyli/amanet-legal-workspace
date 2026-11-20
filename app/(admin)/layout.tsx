@@ -8,8 +8,8 @@ import { SearchDialog } from "@/components/shell/search-dialog";
 import { Sidebar } from "@/components/shell/sidebar";
 import { buttonClasses } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { requireAdmin } from "@/lib/auth";
 import {
-  getAdminUser,
   getFirm,
   getNotifications,
   getSearchIndex,
@@ -23,7 +23,8 @@ import {
  */
 
 async function SidebarData() {
-  const [firm, user] = await Promise.all([getFirm(), getAdminUser()]);
+  const user = await requireAdmin();
+  const firm = await getFirm();
   return (
     <Sidebar
       firmName={firm.name.replace(/ LLP$/, "")}

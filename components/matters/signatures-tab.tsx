@@ -154,7 +154,7 @@ export async function SignaturesTab({ matterId }: { matterId: string }) {
                             <input
                               name="reason"
                               defaultValue="Document needs changes"
-                              className="rounded-lg border border-line bg-surface px-2.5 py-2 font-normal focus:border-accent focus:outline-none"
+                              className="rounded-lg border border-line bg-surface px-2.5 py-2 font-normal focus:border-muted focus:outline-none"
                             />
                           </label>
                           <Button type="submit" variant="danger" size="sm">

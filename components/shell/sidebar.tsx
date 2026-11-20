@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { signOut } from "@/app/actions/auth";
 import { FirmMark, Icon, type IconName } from "@/components/icons";
 import { cn } from "@/lib/cn";
 import { initials } from "@/lib/format";
@@ -71,10 +72,20 @@ export function Sidebar({
         >
           {initials(userName)}
         </span>
-        <span className="min-w-0">
+        <span className="min-w-0 flex-1">
           <b className="block truncate text-[13px] font-semibold">{userName}</b>
           <small className="block truncate text-xs text-muted">{userRole}</small>
         </span>
+        <form action={signOut}>
+          <button
+            type="submit"
+            aria-label="Sign out"
+            title="Sign out"
+            className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted hover:bg-surface-2 hover:text-fg"
+          >
+            <Icon name="logout" className="size-4" />
+          </button>
+        </form>
       </div>
     </aside>
   );

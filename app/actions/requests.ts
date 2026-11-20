@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/auth";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -95,6 +97,7 @@ export async function createDocumentRequest(
   matterId: string,
   formData: FormData,
 ) {
+  await requireAdmin();
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
 
@@ -136,6 +139,7 @@ export async function createDocumentRequest(
 }
 
 export async function acceptDocumentRequest(requestId: string) {
+  await requireAdmin();
   const request = await prisma.documentRequest.update({
     where: { id: requestId },
     data: { status: "ACCEPTED", resolvedAt: new Date(), reviewNote: null },
@@ -154,6 +158,7 @@ export async function acceptDocumentRequest(requestId: string) {
 }
 
 export async function requestChanges(requestId: string, formData: FormData) {
+  await requireAdmin();
   const note = String(formData.get("note") ?? "").trim();
   if (!note) return;
 
@@ -183,6 +188,7 @@ export async function requestChanges(requestId: string, formData: FormData) {
 }
 
 export async function resendUploadLink(requestId: string) {
+  await requireAdmin();
   const request = await loadRequest(requestId);
 
   await issueUploadLink(

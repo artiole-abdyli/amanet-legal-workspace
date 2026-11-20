@@ -134,10 +134,23 @@ component that called it out of the prerender. And a dynamic route reads its
 the promise down, so the static shell never depends on the URL. `next build`
 reports every route as Partial Prerender when both hold.
 
+**Access.** The Admin signs in at `/login` with the seeded credentials. The
+cookie holds a random token and the database stores only its SHA-256, the same
+rule the client links follow, so a database leak cannot be replayed as a live
+session. Signing out deletes the row rather than trusting the browser.
+
+Authorisation is enforced in one place rather than per page: every read in
+`lib/queries.ts` and every Admin mutation in `app/actions/` begins with
+`await requireAdmin()`, which redirects to `/login` when there is no session.
+`GET /api/documents/[versionId]` answers 401 to anyone who is not signed in.
+Client routes are deliberately outside that gate: `/sign/[token]` and
+`/upload/[token]` are authorised by the link itself, checked in
+`lib/link-access.ts`.
+
 ## Not done yet
 
-- **Authentication.** There is no login; the workspace currently reads the single
-  seeded Admin. `lib/password.ts` and the `Session` model are in place for it.
-  Until then `GET /api/documents/[versionId]` is open, and it is marked as such
-  in the code.
-- Tests, and the email provider adapter.
+- Tests.
+- The email provider adapter. Messages are written to `EmailMessage` and the
+  outbox transport marks them sent; delivery through a provider is the step
+  after that.
+- Rate limiting on the client-facing routes.

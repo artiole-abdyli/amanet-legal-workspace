@@ -138,7 +138,7 @@ export async function RequestsTab({ matterId }: { matterId: string }) {
                                 required
                                 rows={3}
                                 placeholder="e.g. The second page is missing."
-                                className="rounded-lg border border-line bg-surface px-2.5 py-2 font-normal focus:border-accent focus:outline-none"
+                                className="rounded-lg border border-line bg-surface px-2.5 py-2 font-normal focus:border-muted focus:outline-none"
                               />
                             </label>
                             <p className="text-[12.5px] text-muted">

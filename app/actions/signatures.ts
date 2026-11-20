@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/auth";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -33,6 +35,7 @@ export async function createSignatureRequest(
   matterId: string,
   formData: FormData,
 ) {
+  await requireAdmin();
   const documentId = String(formData.get("documentId") ?? "");
   const signerName = String(formData.get("signerName") ?? "").trim();
   const signerEmail = String(formData.get("signerEmail") ?? "").trim();
@@ -116,6 +119,7 @@ export async function createSignatureRequest(
  * stops working immediately.
  */
 export async function revokeSignature(id: string, formData: FormData) {
+  await requireAdmin();
   const reason = String(formData.get("reason") ?? "").trim();
   const signature = await loadSignature(id);
   const now = new Date();
@@ -153,6 +157,7 @@ export async function revokeSignature(id: string, formData: FormData) {
  * cannot be turned back into a usable URL.
  */
 export async function resendSigningLink(id: string) {
+  await requireAdmin();
   const signature = await loadSignature(id);
   const token = createSecureToken();
   const title = documentTitle(signature.documentVersion.document.name);

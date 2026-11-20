@@ -1,3 +1,4 @@
+import { getCurrentUser } from "@/lib/auth";
 import { getObject } from "@/lib/storage";
 import { prisma } from "@/lib/prisma";
 
@@ -7,13 +8,17 @@ import { prisma } from "@/lib/prisma";
  * `?download=1` sends it as an attachment; otherwise it opens in the browser's
  * viewer, which is what the document preview uses.
  *
- * TODO: gate this on the Admin session once authentication is wired up. Client
- * access to documents goes through a secure link, never through this route.
+ * Admin only. A client never reaches this route: their access to a document
+ * runs through a secure link, which is checked separately.
  */
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ versionId: string }> },
 ) {
+  if (!(await getCurrentUser())) {
+    return new Response("Not authorised", { status: 401 });
+  }
+
   const { versionId } = await params;
 
   const version = await prisma.documentVersion.findUnique({

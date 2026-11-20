@@ -5,7 +5,7 @@ import { Icon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 
 const CONTROL =
-  "w-full min-w-0 rounded-lg border border-line bg-surface px-2.5 py-2 text-fg focus:border-accent focus:outline-none";
+  "w-full min-w-0 rounded-lg border border-line bg-surface px-2.5 py-2 text-fg focus:border-muted focus:outline-none";
 
 export function FormPage({
   backHref,

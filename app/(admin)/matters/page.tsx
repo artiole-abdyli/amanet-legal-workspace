@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { Icon } from "@/components/icons";
 import { MatterFilters } from "@/components/matters/matter-filters";
 import { Badge, matterStatusTone } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
@@ -181,15 +180,11 @@ export default function MattersPage({
 }) {
   return (
     <>
+      {/* No "New matter" button here: the one in the top bar is on every page,
+          and two of the same action side by side is just noise. */}
       <PageHeader
         title="Matters"
         description="Every case and piece of work the firm has open."
-        actions={
-          <Link href="/matters/new" className={buttonClasses("primary")}>
-            <Icon name="plus" />
-            New matter
-          </Link>
-        }
       />
 
       <Suspense fallback={<div className="h-10" />}>

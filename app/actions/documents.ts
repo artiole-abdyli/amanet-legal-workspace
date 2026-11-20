@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/auth";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -24,6 +26,7 @@ export async function uploadMatterDocument(
   matterId: string,
   formData: FormData,
 ) {
+  await requireAdmin();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return;
   if (file.size > MAX_BYTES) return;

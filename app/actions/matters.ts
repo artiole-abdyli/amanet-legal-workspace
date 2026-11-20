@@ -1,5 +1,7 @@
 "use server";
 
+import { requireAdmin } from "@/lib/auth";
+
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -42,6 +44,7 @@ export async function createMatter(
   _previous: MatterFormState,
   formData: FormData,
 ): Promise<MatterFormState> {
+  await requireAdmin();
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return { error: "Give the matter a title." };
 
@@ -100,6 +103,7 @@ export async function createMatter(
 }
 
 export async function setMatterStatus(matterId: string, status: MatterStatus) {
+  await requireAdmin();
   await prisma.$transaction([
     prisma.matter.update({ where: { id: matterId }, data: { status } }),
     prisma.activityEvent.create({
@@ -115,6 +119,7 @@ export async function setMatterStatus(matterId: string, status: MatterStatus) {
 }
 
 export async function archiveMatter(matterId: string) {
+  await requireAdmin();
   await prisma.$transaction([
     prisma.matter.update({
       where: { id: matterId },
@@ -134,6 +139,7 @@ export async function archiveMatter(matterId: string) {
 }
 
 export async function restoreMatter(matterId: string) {
+  await requireAdmin();
   await prisma.$transaction([
     prisma.matter.update({
       where: { id: matterId },
@@ -153,6 +159,7 @@ export async function restoreMatter(matterId: string) {
 }
 
 export async function toggleTask(taskId: string, done: boolean) {
+  await requireAdmin();
   const task = await prisma.task.update({
     where: { id: taskId },
     data: { completedAt: done ? new Date() : null },
@@ -169,6 +176,7 @@ export async function toggleTask(taskId: string, done: boolean) {
 }
 
 export async function addTask(matterId: string, formData: FormData) {
+  await requireAdmin();
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
 
@@ -190,6 +198,7 @@ export async function addTask(matterId: string, formData: FormData) {
 }
 
 export async function addNote(matterId: string, formData: FormData) {
+  await requireAdmin();
   const body = String(formData.get("body") ?? "").trim();
   if (!body) return;
 

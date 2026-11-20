@@ -1,5 +1,7 @@
 import { connection } from "next/server";
 
+import { requireAdmin } from "@/lib/auth";
+
 import type { SignatureStatus } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -18,18 +20,12 @@ export async function getFirm() {
   return prisma.firm.findFirstOrThrow();
 }
 
-/** The single Admin. Replaced by the signed-in user once auth is wired up. */
-export async function getAdminUser() {
-  await connection();
-  return prisma.user.findFirstOrThrow({ orderBy: { createdAt: "asc" } });
-}
-
 /**
  * A compact index for the Ctrl-K search. A firm's workspace holds hundreds of
  * rows, not millions, so sending one list beats a request per keystroke.
  */
 export async function getSearchIndex() {
-  await connection();
+  await requireAdmin();
   const [matters, clients, documents] = await Promise.all([
     prisma.matter.findMany({
       orderBy: { openedAt: "desc" },
@@ -78,7 +74,7 @@ export async function getSearchIndex() {
 }
 
 export async function getNotifications() {
-  await connection();
+  await requireAdmin();
   return prisma.notification.findMany({
     orderBy: { createdAt: "desc" },
     take: 12,
@@ -86,14 +82,14 @@ export async function getNotifications() {
 }
 
 export async function getUnreadNotificationCount() {
-  await connection();
+  await requireAdmin();
   return prisma.notification.count({ where: { readAt: null } });
 }
 
 // --- Dashboard --------------------------------------------------------------
 
 export async function getDashboard() {
-  await connection();
+  await requireAdmin();
   const horizon = new Date();
   horizon.setDate(horizon.getDate() + 14);
   const now = new Date();
@@ -186,7 +182,7 @@ export type MatterFilters = {
 };
 
 export async function getMatters(filters: MatterFilters = {}) {
-  await connection();
+  await requireAdmin();
   const { query, status, priority, includeArchived, sort = "deadline" } = filters;
 
   const matters = await prisma.matter.findMany({
@@ -239,12 +235,12 @@ export async function getMatters(filters: MatterFilters = {}) {
 }
 
 export async function getMatterCount() {
-  await connection();
+  await requireAdmin();
   return prisma.matter.count();
 }
 
 export async function getMatter(id: string) {
-  await connection();
+  await requireAdmin();
   return prisma.matter.findUnique({
     where: { id },
     include: {
@@ -263,7 +259,7 @@ export async function getMatter(id: string) {
 }
 
 export async function getMatterOverview(matterId: string) {
-  await connection();
+  await requireAdmin();
   const [requests, signatures, tasks, activity] = await Promise.all([
     prisma.documentRequest.groupBy({
       by: ["status"],
@@ -296,7 +292,7 @@ export async function getMatterOverview(matterId: string) {
 }
 
 export async function getMatterDocuments(matterId: string) {
-  await connection();
+  await requireAdmin();
   return prisma.document.findMany({
     where: { matterId },
     orderBy: [{ folder: "asc" }, { name: "asc" }],
@@ -308,7 +304,7 @@ export async function getMatterDocuments(matterId: string) {
 }
 
 export async function getMatterRequests(matterId: string) {
-  await connection();
+  await requireAdmin();
   return prisma.documentRequest.findMany({
     where: { matterId },
     orderBy: [{ status: "asc" }, { requestedAt: "desc" }],
@@ -321,7 +317,7 @@ export async function getMatterRequests(matterId: string) {
 }
 
 export async function getMatterSignatures(matterId: string) {
-  await connection();
+  await requireAdmin();
   return prisma.signatureRequest.findMany({
     where: { matterId },
     orderBy: { sentAt: "desc" },
@@ -338,7 +334,7 @@ export async function getMatterSignatures(matterId: string) {
 }
 
 export async function getMatterTasksAndNotes(matterId: string) {
-  await connection();
+  await requireAdmin();
   const [tasks, notes] = await Promise.all([
     prisma.task.findMany({
       where: { matterId },
@@ -353,7 +349,7 @@ export async function getMatterTasksAndNotes(matterId: string) {
 }
 
 export async function getMatterActivity(matterId: string) {
-  await connection();
+  await requireAdmin();
   return prisma.activityEvent.findMany({
     where: { matterId },
     orderBy: { createdAt: "desc" },
@@ -362,18 +358,29 @@ export async function getMatterActivity(matterId: string) {
 
 // --- Clients ----------------------------------------------------------------
 
-export async function getClients(query?: string) {
-  await connection();
+export type ClientFilters = {
+  query?: string;
+  type?: "INDIVIDUAL" | "COMPANY";
+};
+
+export async function getClients(filters: ClientFilters = {}) {
+  await requireAdmin();
+  const { query, type } = filters;
   return prisma.client.findMany({
-    where: query
-      ? {
-          OR: [
-            { name: { contains: query, mode: "insensitive" } },
-            { email: { contains: query, mode: "insensitive" } },
-            { contactName: { contains: query, mode: "insensitive" } },
-          ],
-        }
-      : undefined,
+    where: {
+      ...(type ? { type } : {}),
+      ...(query
+        ? {
+            OR: [
+              { name: { contains: query, mode: "insensitive" as const } },
+              { email: { contains: query, mode: "insensitive" as const } },
+              {
+                contactName: { contains: query, mode: "insensitive" as const },
+              },
+            ],
+          }
+        : {}),
+    },
     orderBy: { name: "asc" },
     include: {
       matters: {
@@ -386,7 +393,7 @@ export async function getClients(query?: string) {
 
 /** How many things each client still owes the firm, for the clients table. */
 export async function getClientWaitingCounts() {
-  await connection();
+  await requireAdmin();
   const [requests, signatures] = await Promise.all([
     prisma.documentRequest.findMany({
       where: { status: { in: ["PENDING", "CHANGES_REQUESTED"] } },
@@ -407,13 +414,13 @@ export async function getClientWaitingCounts() {
 }
 
 export async function getClient(id: string) {
-  await connection();
+  await requireAdmin();
   return prisma.client.findUnique({ where: { id } });
 }
 
 /** Just enough of each client to fill the picker on the new-matter form. */
 export async function getClientOptions() {
-  await connection();
+  await requireAdmin();
   return prisma.client.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true },

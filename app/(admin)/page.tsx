@@ -24,7 +24,8 @@ import {
   formatDate,
   formatWeekday,
 } from "@/lib/format";
-import { getAdminUser, getDashboard } from "@/lib/queries";
+import { requireAdmin } from "@/lib/auth";
+import { getDashboard } from "@/lib/queries";
 
 export const metadata = { title: "Dashboard" };
 
@@ -81,7 +82,8 @@ const ATTENTION_TONES = {
 };
 
 async function DashboardContent() {
-  const [user, data] = await Promise.all([getAdminUser(), getDashboard()]);
+  const user = await requireAdmin();
+  const data = await getDashboard();
   const now = new Date();
 
   const attention: AttentionItem[] = [
