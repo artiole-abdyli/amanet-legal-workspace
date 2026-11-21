@@ -72,9 +72,7 @@ export function SearchDialog({ items }: { items: SearchItem[] }) {
         <span className="flex-1 truncate">
           Search matters, clients, documents
         </span>
-        <kbd className="hidden rounded-[5px] border border-line bg-surface px-1.5 font-mono text-[11px] sm:block">
-          Ctrl K
-        </kbd>
+        
       </button>
     );
   }
@@ -118,7 +116,7 @@ export function SearchDialog({ items }: { items: SearchItem[] }) {
                 go(results[active]);
               }
             }}
-            placeholder="Search matters, clients, documents"
+            
             aria-label="Search"
             className="min-w-0 flex-1 bg-transparent text-base text-fg outline-none"
           />

@@ -20,6 +20,9 @@ export function MatterFilters() {
 
   function apply(changes: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
+    // A narrower list has fewer pages, so page 7 of the old result is
+    // meaningless against the new one.
+    params.delete("page");
     for (const [key, value] of Object.entries(changes)) {
       if (value === null || value === "") params.delete(key);
       else params.set(key, value);

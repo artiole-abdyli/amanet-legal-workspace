@@ -6,17 +6,14 @@ import { Badge, matterStatusTone } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, EmptyState, PageHeader } from "@/components/ui/card";
 import { Chip, DueDate, PriorityMeter } from "@/components/ui/meta";
+import { Pagination } from "@/components/ui/pagination";
 import { SkeletonTable } from "@/components/ui/skeleton";
 import { matterStatusLabel } from "@/lib/format";
-import {
-  getMatterCount,
-  getMatters,
-  type MatterFilters as Filters,
-} from "@/lib/queries";
+import { getMatters, type MatterFilters as Filters } from "@/lib/queries";
 
 export const metadata = { title: "Matters" };
 
-type Matter = Awaited<ReturnType<typeof getMatters>>[number];
+type Matter = Awaited<ReturnType<typeof getMatters>>["matters"][number];
 
 /** The next date the firm has to hit, which is what the column is really for. */
 function nextKeyDate(matter: Matter) {
@@ -44,12 +41,10 @@ async function MattersTable({
     priority: one(params.priority) as Filters["priority"],
     includeArchived: one(params.archived) === "1",
     sort: (one(params.sort) as Filters["sort"]) ?? "deadline",
+    page: Number(one(params.page) ?? 1) || 1,
   };
 
-  const [matters, total] = await Promise.all([
-    getMatters(filters),
-    getMatterCount(),
-  ]);
+  const { matters, total, page, pageCount, perPage } = await getMatters(filters);
 
   if (matters.length === 0) {
     return (
@@ -166,9 +161,15 @@ async function MattersTable({
           </tbody>
         </table>
       </div>
-      <p className="text-muted">
-        {matters.length} of {total} matters
-      </p>
+      <Pagination
+        basePath="/matters"
+        params={params}
+        page={page}
+        pageCount={pageCount}
+        total={total}
+        perPage={perPage}
+        noun="matters"
+      />
     </>
   );
 }
@@ -184,8 +185,7 @@ export default function MattersPage({
           and two of the same action side by side is just noise. */}
       <PageHeader
         title="Matters"
-        description="Every case and piece of work the firm has open."
-      />
+   />
 
       <Suspense fallback={<div className="h-10" />}>
         <MatterFilters />

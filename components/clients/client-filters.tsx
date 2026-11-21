@@ -21,6 +21,9 @@ export function ClientFilters() {
 
   function apply(changes: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
+    // A narrower list has fewer pages, so the page you were on no longer maps
+    // onto the new result.
+    params.delete("page");
     for (const [key, value] of Object.entries(changes)) {
       if (value === null || value === "") params.delete(key);
       else params.set(key, value);

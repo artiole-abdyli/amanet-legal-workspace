@@ -179,64 +179,92 @@ export type MatterFilters = {
   priority?: "LOW" | "MEDIUM" | "HIGH";
   includeArchived?: boolean;
   sort?: "deadline" | "priority" | "opened";
+  page?: number;
 };
 
+export const MATTERS_PER_PAGE = 5;
+
+/**
+ * One page of matters, with the total for the same filters.
+ *
+ * The count comes first so the requested page can be clamped: asking for page 7
+ * of a three-page result returns the last page rather than an empty table that
+ * looks like "nothing matched".
+ */
 export async function getMatters(filters: MatterFilters = {}) {
   await requireAdmin();
-  const { query, status, priority, includeArchived, sort = "deadline" } = filters;
+  const {
+    query,
+    status,
+    priority,
+    includeArchived,
+    sort = "deadline",
+    page = 1,
+  } = filters;
 
-  const matters = await prisma.matter.findMany({
-    where: {
-      ...(includeArchived ? {} : { archivedAt: null }),
-      ...(status ? { status } : {}),
-      ...(priority ? { priority } : {}),
-      ...(query
-        ? {
-            OR: [
-              { title: { contains: query, mode: "insensitive" as const } },
-              { reference: { contains: query, mode: "insensitive" as const } },
-              { practiceArea: { contains: query, mode: "insensitive" as const } },
-              {
-                client: {
+  const where = {
+    ...(includeArchived ? {} : { archivedAt: null }),
+    ...(status ? { status } : {}),
+    ...(priority ? { priority } : {}),
+    ...(query
+      ? {
+          OR: [
+            { title: { contains: query, mode: "insensitive" as const } },
+            { reference: { contains: query, mode: "insensitive" as const } },
+            {
+              practiceArea: { contains: query, mode: "insensitive" as const },
+            },
+            {
+              client: {
+                name: { contains: query, mode: "insensitive" as const },
+              },
+            },
+            {
+              documents: {
+                some: {
                   name: { contains: query, mode: "insensitive" as const },
                 },
               },
-              {
-                documents: {
-                  some: {
-                    name: { contains: query, mode: "insensitive" as const },
-                  },
-                },
-              },
-            ],
-          }
-        : {}),
-    },
-    orderBy:
-      sort === "priority"
-        ? [{ priority: "desc" }, { deadline: "asc" }]
-        : sort === "opened"
-          ? { openedAt: "desc" }
-          : [{ deadline: "asc" }, { openedAt: "desc" }],
-    include: {
-      client: { select: { id: true, name: true } },
-      keyDates: { orderBy: { date: "asc" } },
-      _count: {
-        select: {
-          tasks: { where: { completedAt: null } },
-          documentRequests: { where: { status: "SUBMITTED" } },
-          signatureRequests: { where: { status: { in: LIVE_SIGNATURE } } },
+            },
+          ],
+        }
+      : {}),
+  };
+
+  const total = await prisma.matter.count({ where });
+  const pageCount = Math.max(1, Math.ceil(total / MATTERS_PER_PAGE));
+  const current = Math.min(pageCount, Math.max(1, Math.trunc(page) || 1));
+
+  const matters = await prisma.matter.findMany({
+      where,
+      orderBy:
+        sort === "priority"
+          ? [{ priority: "desc" }, { deadline: "asc" }]
+          : sort === "opened"
+            ? { openedAt: "desc" }
+            : [{ deadline: "asc" }, { openedAt: "desc" }],
+      skip: (current - 1) * MATTERS_PER_PAGE,
+      take: MATTERS_PER_PAGE,
+      include: {
+        client: { select: { id: true, name: true } },
+        keyDates: { orderBy: { date: "asc" } },
+        _count: {
+          select: {
+            tasks: { where: { completedAt: null } },
+            documentRequests: { where: { status: "SUBMITTED" } },
+            signatureRequests: { where: { status: { in: LIVE_SIGNATURE } } },
+          },
         },
       },
-    },
   });
 
-  return matters;
-}
-
-export async function getMatterCount() {
-  await requireAdmin();
-  return prisma.matter.count();
+  return {
+    matters,
+    total,
+    page: current,
+    perPage: MATTERS_PER_PAGE,
+    pageCount,
+  };
 }
 
 export async function getMatter(id: string) {
@@ -361,27 +389,39 @@ export async function getMatterActivity(matterId: string) {
 export type ClientFilters = {
   query?: string;
   type?: "INDIVIDUAL" | "COMPANY";
+  page?: number;
 };
+
+export const CLIENTS_PER_PAGE = 5;
 
 export async function getClients(filters: ClientFilters = {}) {
   await requireAdmin();
-  const { query, type } = filters;
-  return prisma.client.findMany({
-    where: {
-      ...(type ? { type } : {}),
-      ...(query
-        ? {
-            OR: [
-              { name: { contains: query, mode: "insensitive" as const } },
-              { email: { contains: query, mode: "insensitive" as const } },
-              {
-                contactName: { contains: query, mode: "insensitive" as const },
-              },
-            ],
-          }
-        : {}),
-    },
+  const { query, type, page = 1 } = filters;
+
+  const where = {
+    ...(type ? { type } : {}),
+    ...(query
+      ? {
+          OR: [
+            { name: { contains: query, mode: "insensitive" as const } },
+            { email: { contains: query, mode: "insensitive" as const } },
+            {
+              contactName: { contains: query, mode: "insensitive" as const },
+            },
+          ],
+        }
+      : {}),
+  };
+
+  const total = await prisma.client.count({ where });
+  const pageCount = Math.max(1, Math.ceil(total / CLIENTS_PER_PAGE));
+  const current = Math.min(pageCount, Math.max(1, Math.trunc(page) || 1));
+
+  const clients = await prisma.client.findMany({
+    where,
     orderBy: { name: "asc" },
+    skip: (current - 1) * CLIENTS_PER_PAGE,
+    take: CLIENTS_PER_PAGE,
     include: {
       matters: {
         orderBy: { openedAt: "desc" },
@@ -389,6 +429,14 @@ export async function getClients(filters: ClientFilters = {}) {
       },
     },
   });
+
+  return {
+    clients,
+    total,
+    page: current,
+    perPage: CLIENTS_PER_PAGE,
+    pageCount,
+  };
 }
 
 /** How many things each client still owes the firm, for the clients table. */

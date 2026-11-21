@@ -843,6 +843,118 @@ async function main() {
   await event(warehouse.id, "MATTER", "Matter archived", "ADMIN", "Elena Vance", at(-140));
 
   // -------------------------------------------------------------------------
+  // A fuller caseload
+  //
+  // The five matters above carry the demo. These fill the list out to a size a
+  // real firm would have, so search, filters and pagination have something to
+  // work on rather than looking decorative.
+  // -------------------------------------------------------------------------
+
+  // More client records, so the clients list is worth searching and paging.
+  const more = await Promise.all(
+    (
+      [
+        ["Halden & Rowe Architects", "COMPANY", "accounts@haldenrowe.example", "Nina Halden"],
+        ["Bramley Construction Ltd", "COMPANY", "legal@bramley-build.example", "Owen Bramley"],
+        ["Clearwater Foods Ltd", "COMPANY", "contracts@clearwaterfoods.example", "Sofia Marchetti"],
+        ["Keswick Property Group", "COMPANY", "office@keswickproperty.example", "Daniel Keswick"],
+        ["Orla Devlin", "INDIVIDUAL", "orla.devlin@example.com", null],
+        ["Hassan Qureshi", "INDIVIDUAL", "hassan.qureshi@example.com", null],
+        ["Margit Sandberg", "INDIVIDUAL", "margit.sandberg@example.com", null],
+        ["Tobias Lenz", "INDIVIDUAL", "tobias.lenz@example.com", null],
+        ["Fiona Achebe", "INDIVIDUAL", "fiona.achebe@example.com", null],
+        ["Rowan Pethick", "INDIVIDUAL", "rowan.pethick@example.com", null],
+      ] as const
+    ).map(([name, type, email, contactName]) =>
+      prisma.client.create({
+        data: {
+          firmId: firm.id,
+          name,
+          type,
+          email,
+          contactName,
+        },
+      }),
+    ),
+  );
+
+  const roster: [string, string, string, "ACTIVE" | "ON_HOLD" | "CLOSED",
+    "LOW" | "MEDIUM" | "HIGH", number, string][] = [
+    ["Commercial lease, Unit 4 Brampton Yard", "Property", northwind.id, "ACTIVE", "MEDIUM", 18, "Heads of terms agreed"],
+    ["Shareholder agreement review", "Commercial", northwind.id, "ACTIVE", "HIGH", 5, "Board meeting"],
+    ["Trademark opposition, STILLWATER", "Commercial", northwind.id, "ON_HOLD", "LOW", 40, "Opposition deadline"],
+    ["Partnership dissolution", "Commercial", marco.id, "ACTIVE", "MEDIUM", 23, "Accounts to be agreed"],
+    ["Boundary dispute, 7 Larkspur Lane", "Litigation", priya.id, "ACTIVE", "HIGH", 8, "Surveyor's report due"],
+    ["Redundancy consultation", "Employment", northwind.id, "ACTIVE", "HIGH", 3, "Consultation ends"],
+    ["Share purchase, Mallory Foods", "Commercial", northwind.id, "ACTIVE", "MEDIUM", 31, "Completion"],
+    ["Probate, estate of J. Whitfield", "Private client", priya.id, "ACTIVE", "LOW", 46, "Grant application"],
+    ["Lease assignment, 22 Quarry Street", "Property", ana.id, "ACTIVE", "MEDIUM", 12, "Landlord consent"],
+    ["Data protection audit", "Commercial", northwind.id, "ON_HOLD", "LOW", 60, "Audit report"],
+    ["Construction contract dispute", "Litigation", northwind.id, "ACTIVE", "HIGH", 15, "Adjudication response"],
+    ["Franchise agreement renewal", "Commercial", marco.id, "CLOSED", "LOW", -20, "Renewal signed"],
+    ["Employment tribunal, Okafor", "Employment", marco.id, "ACTIVE", "MEDIUM", 27, "Bundle exchange"],
+    ["Office relocation lease", "Property", northwind.id, "CLOSED", "MEDIUM", -8, "Keys handed over"],
+    ["Practice incorporation", "Commercial", more[0].id, "ACTIVE", "MEDIUM", 21, "Articles to be filed"],
+    ["Subcontractor dispute, Pier Road", "Litigation", more[1].id, "ACTIVE", "HIGH", 6, "Mediation"],
+    ["Supply terms rewrite", "Commercial", more[2].id, "ACTIVE", "LOW", 35, "Terms issued"],
+    ["Portfolio refinance", "Property", more[3].id, "ACTIVE", "HIGH", 10, "Lender report"],
+    ["Divorce settlement", "Private client", more[4].id, "ON_HOLD", "MEDIUM", 48, "Financial disclosure"],
+    ["Visa sponsorship review", "Employment", more[5].id, "ACTIVE", "LOW", 29, "Licence renewal"],
+    ["Cohabitation agreement", "Private client", more[6].id, "ACTIVE", "LOW", 52, "Draft to both parties"],
+    ["Unpaid invoice recovery", "Litigation", more[7].id, "ACTIVE", "MEDIUM", 9, "Letter before action"],
+  ];
+
+  let sequence = 143;
+  for (const [title, area, clientId, status, priority, inDays, keyDate] of roster) {
+    const reference = `HV-2026-0${sequence++}`;
+    const matter = await prisma.matter.create({
+      data: {
+        firmId: firm.id,
+        clientId,
+        reference,
+        title,
+        practiceArea: area,
+        status,
+        priority,
+        openedAt: at(-90 + (sequence % 40)),
+        deadline: at(inDays),
+        keyDates: { create: [{ label: keyDate, date: at(inDays) }] },
+        tasks: {
+          create: [
+            status === "CLOSED"
+              ? { title: "Close the file", dueDate: at(inDays), completedAt: at(inDays, 16) }
+              : { title: `Review ${title.toLowerCase()}`, dueDate: at(Math.max(1, inDays - 4)) },
+          ],
+        },
+        activity: {
+          create: {
+            type: "MATTER",
+            summary: "Matter opened",
+            actorType: "ADMIN",
+            actorName: "Elena Vance",
+            createdAt: at(-90 + (sequence % 40)),
+          },
+        },
+      },
+    });
+
+    await addDocument({
+      matterId: matter.id,
+      reference,
+      folder: "CONTRACTS",
+      name: `${title}.pdf`,
+      title,
+      versions: [
+        {
+          uploadedByType: "ADMIN",
+          uploadedByName: "Elena Vance",
+          createdAt: at(-60 + (sequence % 30)),
+        },
+      ],
+    });
+  }
+
+  // -------------------------------------------------------------------------
   // Notifications and the email log
   // -------------------------------------------------------------------------
 
