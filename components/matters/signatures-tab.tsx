@@ -17,6 +17,9 @@ import { getMatter, getMatterSignatures } from "@/lib/queries";
 
 const LIVE = ["SENT", "VIEWED", "STARTED"];
 
+// The stored row says SENT until someone acts on it, but a request whose link
+// has passed its expiry is finished, and the Admin needs to read it that way.
+
 export async function SignaturesTab({ matterId }: { matterId: string }) {
   const [matter, signatures] = await Promise.all([
     getMatter(matterId),
@@ -62,7 +65,8 @@ export async function SignaturesTab({ matterId }: { matterId: string }) {
         </Card>
       ) : (
         signatures.map((signature) => {
-          const live = LIVE.includes(signature.status);
+          const status = signature.effectiveStatus;
+          const live = LIVE.includes(status);
           const daysLeft = daysUntil(signature.expiresAt);
 
           return (
@@ -82,25 +86,26 @@ export async function SignaturesTab({ matterId }: { matterId: string }) {
                     </span>
                   </p>
                 </div>
-                <Badge tone={signatureStatusTone[signature.status]}>
-                  {signatureStatusLabel[signature.status]}
+                <Badge tone={signatureStatusTone[status]}>
+                  {signatureStatusLabel[status]}
                 </Badge>
               </div>
 
               <SignatureStepper
-                status={signature.status}
+                status={status}
                 sentAt={signature.sentAt}
                 viewedAt={signature.viewedAt}
                 startedAt={signature.startedAt}
                 signedAt={signature.signedAt}
                 revokedAt={signature.revokedAt}
+                expiresAt={signature.expiresAt}
               />
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
                 <span className="text-muted">
-                  {signature.status === "SIGNED" ? (
+                  {status === "SIGNED" ? (
                     "Signed PDF and certificate saved to the Signed folder"
-                  ) : signature.status === "REVOKED" ? (
+                  ) : status === "REVOKED" ? (
                     `Link revoked · ${signature.revokedReason ?? "No reason given"}`
                   ) : (
                     <span className="inline-flex items-center gap-1.5">
@@ -114,7 +119,7 @@ export async function SignaturesTab({ matterId }: { matterId: string }) {
                 </span>
 
                 <div className="flex flex-wrap items-center gap-2">
-                  {signature.status === "SIGNED" && signature.signedDocument ? (
+                  {status === "SIGNED" && signature.signedDocument ? (
                     <>
                       <Link
                         href={`/matters/${matterId}?tab=documents`}

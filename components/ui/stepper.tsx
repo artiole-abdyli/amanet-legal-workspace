@@ -22,6 +22,7 @@ export function SignatureStepper({
   startedAt,
   signedAt,
   revokedAt,
+  expiresAt,
 }: {
   status: SignatureStatus;
   sentAt: Date;
@@ -29,6 +30,7 @@ export function SignatureStepper({
   startedAt: Date | null;
   signedAt: Date | null;
   revokedAt: Date | null;
+  expiresAt: Date;
 }) {
   const steps = [
     { label: "Sent", at: sentAt as Date | null },
@@ -79,7 +81,7 @@ export function SignatureStepper({
               {step.at
                 ? formatDateTime(step.at)
                 : isStop
-                  ? formatDateTime(revokedAt)
+                  ? formatDateTime(status === "EXPIRED" ? expiresAt : revokedAt)
                   : isNow
                     ? "Waiting"
                     : "—"}

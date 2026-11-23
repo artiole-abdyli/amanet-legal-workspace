@@ -116,9 +116,7 @@ async function SignView({ params }: { params: Params }) {
       <SignFlow
         token={token}
         signerName={signature.signerName}
-        signerEmail={signature.signerEmail}
         documentName={title}
-        matterReference={signature.matter.reference}
         pdfUrl={`/sign/${token}/document`}
       />
     </ClientShell>

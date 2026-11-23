@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { openUploadLink } from "@/lib/link-access";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, waitMessage } from "@/lib/rate-limit";
 import { documentKey, putObject } from "@/lib/storage";
 
 export type UploadOutcome = { ok: true } | { ok: false; message: string };
@@ -20,6 +21,16 @@ export async function submitClientUpload(
   token: string,
   formData: FormData,
 ): Promise<UploadOutcome> {
+  // Keyed on the link rather than the address: the upload accepts 20 MB a
+  // time, and the link is the thing being abused.
+  const limit = rateLimit(`upload:${token}`, 10, 10 * 60_000);
+  if (!limit.ok) {
+    return {
+      ok: false,
+      message: `Too many uploads from this link. ${waitMessage(limit.retryAfter)}`,
+    };
+  }
+
   const result = await openUploadLink(token);
   if (!result.ok) {
     return {

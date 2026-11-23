@@ -12,8 +12,33 @@ import { prisma } from "@/lib/prisma";
  * needs once, and so the shapes the UI depends on are visible in one file.
  */
 
-/** A request that is still out with the signer and can still be acted on. */
+/** The states a request passes through while it is still out with the signer. */
 const LIVE_SIGNATURE: SignatureStatus[] = ["SENT", "VIEWED", "STARTED"];
+
+/**
+ * Still actionable: not finished, not stopped, and not past its expiry.
+ *
+ * Expiry is a moment, not an event, so nothing writes EXPIRED into the row;
+ * `lib/link-access` already refuses the link the second it passes. Counting it
+ * here keeps the workspace from telling the Admin a dead request is live.
+ */
+function liveSignatureWhere() {
+  return {
+    status: { in: LIVE_SIGNATURE },
+    expiresAt: { gt: new Date() },
+  };
+}
+
+/** What the Admin should see, given the stored status and the clock. */
+export function effectiveSignatureStatus(signature: {
+  status: SignatureStatus;
+  expiresAt: Date;
+}): SignatureStatus {
+  const live = LIVE_SIGNATURE.includes(signature.status);
+  return live && signature.expiresAt.getTime() <= Date.now()
+    ? "EXPIRED"
+    : signature.status;
+}
 
 export async function getFirm() {
   await connection();
@@ -107,7 +132,7 @@ export async function getDashboard() {
     prisma.matter.count({
       where: { archivedAt: null, status: { not: "CLOSED" } },
     }),
-    prisma.signatureRequest.count({ where: { status: { in: LIVE_SIGNATURE } } }),
+    prisma.signatureRequest.count({ where: liveSignatureWhere() }),
     prisma.documentRequest.count({ where: { status: "SUBMITTED" } }),
     prisma.matterKeyDate.findMany({
       where: {
@@ -131,7 +156,10 @@ export async function getDashboard() {
       },
     }),
     prisma.signatureRequest.findMany({
-      where: { status: { in: ["VIEWED", "STARTED"] } },
+      where: {
+        status: { in: ["VIEWED", "STARTED"] },
+        expiresAt: { gt: new Date() },
+      },
       orderBy: { sentAt: "desc" },
       include: {
         matter: { select: { id: true, reference: true } },
@@ -252,7 +280,7 @@ export async function getMatters(filters: MatterFilters = {}) {
           select: {
             tasks: { where: { completedAt: null } },
             documentRequests: { where: { status: "SUBMITTED" } },
-            signatureRequests: { where: { status: { in: LIVE_SIGNATURE } } },
+            signatureRequests: { where: liveSignatureWhere() },
           },
         },
       },
@@ -295,7 +323,7 @@ export async function getMatterOverview(matterId: string) {
       _count: true,
     }),
     prisma.signatureRequest.count({
-      where: { matterId, status: { in: LIVE_SIGNATURE } },
+      where: { matterId, ...liveSignatureWhere() },
     }),
     prisma.task.count({ where: { matterId, completedAt: null } }),
     prisma.activityEvent.findMany({
@@ -346,7 +374,7 @@ export async function getMatterRequests(matterId: string) {
 
 export async function getMatterSignatures(matterId: string) {
   await requireAdmin();
-  return prisma.signatureRequest.findMany({
+  const signatures = await prisma.signatureRequest.findMany({
     where: { matterId },
     orderBy: { sentAt: "desc" },
     include: {
@@ -359,6 +387,11 @@ export async function getMatterSignatures(matterId: string) {
       signedDocument: { select: { id: true, name: true } },
     },
   });
+
+  return signatures.map((signature) => ({
+    ...signature,
+    effectiveStatus: effectiveSignatureStatus(signature),
+  }));
 }
 
 export async function getMatterTasksAndNotes(matterId: string) {
@@ -448,7 +481,7 @@ export async function getClientWaitingCounts() {
       select: { matter: { select: { clientId: true } } },
     }),
     prisma.signatureRequest.findMany({
-      where: { status: { in: LIVE_SIGNATURE } },
+      where: liveSignatureWhere(),
       select: { matter: { select: { clientId: true } } },
     }),
   ]);

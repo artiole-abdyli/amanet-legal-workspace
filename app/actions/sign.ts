@@ -2,12 +2,14 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { sendEmail } from "@/lib/email";
 import { documentTitle } from "@/lib/format";
 import { openSigningLink } from "@/lib/link-access";
 import { stampSignature } from "@/lib/pdf/sign";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, waitMessage } from "@/lib/rate-limit";
 import { decodeSignaturePng } from "@/lib/signature-image";
 import { documentKey, getObject, putObject } from "@/lib/storage";
 
@@ -19,9 +21,12 @@ import { documentKey, getObject, putObject } from "@/lib/storage";
  * an expired one cannot push a signature through.
  */
 
-export type SignOutcome =
-  | { ok: true }
-  | { ok: false; message: string };
+/**
+ * Only the refusals come back. A successful signature redirects, so the page
+ * that renders afterwards is a plain GET: refreshing it cannot sign twice, and
+ * the confirmation does not depend on client state surviving a re-render.
+ */
+export type SignOutcome = { ok: false; message: string };
 
 /** Sent -> Viewed, on the first open of the page. */
 export async function markViewed(token: string) {
@@ -102,6 +107,14 @@ export async function submitSignature(
   token: string,
   formData: FormData,
 ): Promise<SignOutcome> {
+  const limit = rateLimit(`sign:${token}`, 10, 10 * 60_000);
+  if (!limit.ok) {
+    return {
+      ok: false,
+      message: `Too many attempts from this link. ${waitMessage(limit.retryAfter)}`,
+    };
+  }
+
   const result = await openSigningLink(token);
   if (!result.ok) {
     return {
@@ -250,5 +263,5 @@ export async function submitSignature(
   });
 
   revalidatePath(`/matters/${matter.id}`);
-  return { ok: true };
+  redirect(`/sign/${token}/done`);
 }

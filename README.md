@@ -28,6 +28,9 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 (one signing link, two upload links, and one dead link) so every client-facing
 state can be opened directly.
 
+A step-by-step walkthrough of everything worth checking, in Albanian, is in
+[TESTIM.md](TESTIM.md).
+
 ### Other commands
 
 | Command | What it does |
@@ -38,6 +41,7 @@ state can be opened directly.
 | `npm run db:reset` | Drop, re-migrate and re-seed |
 | `npm run db:studio` | Browse the data in Prisma Studio |
 | `npm test` | Run the unit tests (no database needed) |
+| `npm run test:e2e` | Run the end-to-end tests (needs the app and a fresh seed) |
 
 ## Stack
 
@@ -173,11 +177,26 @@ rather than merely visible:
 - **PDF signing.** The certificate page is appended and the source bytes are
   left untouched.
 
+### End to end
+
+`npm run test:e2e` drives a real browser against a running app. Reset the data
+first, because these tests sign documents and accept uploads:
+
+```bash
+npm run db:reset
+npm run test:e2e
+```
+
+The signing test is the one worth reading. It signs in, sends the purchase
+contract for signature, then picks the link out of **/emails** exactly as a
+client would pick it out of their inbox — the token is never read from the
+database, because it does not exist there in a readable form. It then draws a
+signature, submits, and checks that the matter shows the request as signed and
+the signed PDF filed in the Documents tab.
+
 ## Not done yet
 
-- End-to-end tests. The unit tests cover the libraries; the flows through the
-  screens are checked by hand.
-- The email provider adapter. Messages are written to `EmailMessage` and the
-  outbox transport marks them sent; delivery through a provider is the step
-  after that.
-- Rate limiting on the client-facing routes.
+- A shared rate limiter. The current one counts in the process that serves the
+  request, which is right for one server and wrong for several; behind more
+  than one instance it wants Redis or the platform's own limiter.
+- Bulk actions, and exporting a matter.

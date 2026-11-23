@@ -9,13 +9,14 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:e2e": "playwright test",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio --port 5555",
-    "db:reset": "prisma migrate reset --force --skip-seed && npm run db:seed",
+    "db:reset": "prisma migrate reset --force && npm run db:seed",
     "setup": "docker compose up -d && prisma migrate dev && npm run db:seed"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.1",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^24.19.2",
     "@types/react": "^19",

@@ -3,7 +3,6 @@
 import { useActionState, useState, useTransition } from "react";
 
 import { markStarted, submitSignature } from "@/app/actions/sign";
-import { ClientState } from "@/components/client/shell";
 import { Icon } from "@/components/icons";
 import {
   SignaturePad,
@@ -11,23 +10,18 @@ import {
 } from "@/components/signature-pad";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
-import { firstName } from "@/lib/format";
 
 type Step = "review" | "sign";
 
 export function SignFlow({
   token,
   signerName,
-  signerEmail,
   documentName,
-  matterReference,
   pdfUrl,
 }: {
   token: string;
   signerName: string;
-  signerEmail: string;
   documentName: string;
-  matterReference: string;
   pdfUrl: string;
 }) {
   const [step, setStep] = useState<Step>("review");
@@ -47,37 +41,6 @@ export function SignFlow({
     startTransition(async () => {
       await markStarted(token);
     });
-  }
-
-  if (state?.ok) {
-    return (
-      <ClientState
-        tone="ok"
-        icon="check"
-        title={`Thank you, ${firstName(signerName)}. It is signed.`}
-        extra={
-          <dl className="mt-2 w-full max-w-[460px] rounded-card border border-line bg-bg px-4 py-3.5 text-left">
-            <div className="flex justify-between gap-4 py-1">
-              <dt className="text-muted">Document</dt>
-              <dd className="min-w-0 text-right">{documentName}</dd>
-            </div>
-            <div className="flex justify-between gap-4 py-1">
-              <dt className="text-muted">Matter</dt>
-              <dd className="font-mono text-[13px]">{matterReference}</dd>
-            </div>
-            <div className="flex justify-between gap-4 py-1">
-              <dt className="text-muted">Copy sent to</dt>
-              <dd className="min-w-0 text-right font-mono text-[13px] break-all">
-                {signerEmail}
-              </dd>
-            </div>
-          </dl>
-        }
-      >
-        Harlow &amp; Vance has been notified. A signed copy with its certificate
-        of completion has been emailed to you. You can close this page.
-      </ClientState>
-    );
   }
 
   const ready = Boolean(signature) && consent;
@@ -164,7 +127,7 @@ export function SignFlow({
             </label>
           </section>
 
-          {state && !state.ok ? (
+          {state ? (
             <p role="alert" className="font-medium text-danger">
               {state.message}
             </p>

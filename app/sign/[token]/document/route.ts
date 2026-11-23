@@ -1,4 +1,5 @@
 import { openSigningLink } from "@/lib/link-access";
+import { rateLimit } from "@/lib/rate-limit";
 import { getObject } from "@/lib/storage";
 
 /**
@@ -12,6 +13,15 @@ export async function GET(
   { params }: { params: Promise<{ token: string }> },
 ) {
   const { token } = await params;
+
+  const limit = rateLimit(`sign-doc:${token}`, 60, 60_000);
+  if (!limit.ok) {
+    return new Response("Too many requests", {
+      status: 429,
+      headers: { "Retry-After": String(limit.retryAfter) },
+    });
+  }
+
   const result = await openSigningLink(token);
 
   if (!result.ok) {

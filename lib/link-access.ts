@@ -115,3 +115,26 @@ export async function touchLink(linkId: string) {
     data: { lastSeenAt: new Date() },
   });
 }
+
+/**
+ * Reads a signing link that has already been spent.
+ *
+ * Signing redirects to a confirmation page, and by then the link is used, so
+ * the ordinary check would refuse it. This grants nothing: it only answers
+ * "was this link used to sign, and what was signed", and the caller refuses
+ * anything that is not already SIGNED.
+ */
+export async function openCompletedSigningLink(token: string) {
+  await connection();
+
+  const link = await prisma.secureLink.findUnique({
+    where: { tokenHash: hashSecureToken(token) },
+    include: signInclude,
+  });
+
+  if (!link?.signatureRequest) return null;
+  if (link.purpose !== "SIGN") return null;
+  if (link.signatureRequest.status !== "SIGNED") return null;
+
+  return link.signatureRequest;
+}
