@@ -25,7 +25,7 @@ test("a document goes out for signature and comes back signed", async ({
   await matterLink.click();
 
   // Send the purchase contract to the client.
-  await page.getByRole("link", { name: "Request signature" }).click();
+  await page.getByRole("link", { name: "Request signature" }).first().click();
   await expect(
     page.getByRole("heading", { name: "Request a signature" }),
   ).toBeVisible();
@@ -74,20 +74,40 @@ test("a revoked link stops working for the client", async ({ page }) => {
 
   await signIn(page);
 
+  // The test makes its own request rather than borrowing a seeded one, so it
+  // can be run twice in a row without the first run breaking the second.
+  await page.goto("/matters");
+  await page.getByPlaceholder(/Search by title/).fill("Supplier agreement");
+  await page.getByRole("link", { name: /Supplier agreement renewal/ }).click();
+  await page.getByRole("link", { name: "Request signature" }).first().click();
+  await page.getByRole("button", { name: "Send request" }).click();
+
+  // The action redirects when it is done. Without waiting for that, the next
+  // navigation can outrun it and read the outbox before the email is written.
+  await page.waitForURL(/\/matters\/[^/]+\?tab=signatures/);
+
+  const link = await latestLink(page, "sign");
+
+  // It works before it is revoked.
+  await page.goto(link);
+  await expect(
+    page.getByRole("heading", { name: /please review and sign/i }),
+  ).toBeVisible();
+
+  // Revoke the newest request.
   await page.goto("/matters");
   await page.getByPlaceholder(/Search by title/).fill("Supplier agreement");
   await page.getByRole("link", { name: /Supplier agreement renewal/ }).click();
   await page.getByRole("tab", { name: /Signatures/ }).click();
 
-  // Re-issue the link so the outbox holds one we know is live, then revoke it.
-  await page.getByRole("button", { name: /Resend link/ }).first().click();
-  const link = await latestLink(page, "sign");
+  // Scope to the newest card. Several requests can sit on one matter, and
+  // revoking the wrong one would leave the test passing for the wrong reason.
+  const newest = page.locator("article").first();
+  await newest.getByText("Revoke", { exact: true }).click();
+  await newest.getByRole("button", { name: "Revoke link" }).click();
+  await expect(newest.getByText("Revoked").first()).toBeVisible();
 
-  await page.goBack();
-  await page.getByRole("group").filter({ hasText: "Revoke" }).first().click();
-  await page.getByRole("button", { name: "Revoke link" }).click();
-  await expect(page.getByText("Revoked").first()).toBeVisible();
-
+  // And now it does not.
   await page.goto(link);
   await expect(
     page.getByRole("heading", { name: /no longer active|cancelled/i }),

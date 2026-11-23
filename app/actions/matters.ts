@@ -19,6 +19,21 @@ import { getFirm } from "@/lib/queries";
 
 const ACTOR = { actorType: "ADMIN" as const, actorName: "Elena Vance" };
 
+/**
+ * Archiving makes a matter read-only, and the buttons disappear with it. That
+ * is the interface's half of the promise; this is the server's. A form left
+ * open in another tab, or a direct POST, must not be able to write to a matter
+ * the workspace shows as closed.
+ */
+async function assertNotArchived(matterId: string) {
+  const matter = await prisma.matter.findUnique({
+    where: { id: matterId },
+    select: { archivedAt: true },
+  });
+  if (!matter) throw new Error("Matter not found");
+  if (matter.archivedAt) throw new Error("This matter is archived");
+}
+
 export type MatterFormState = { error: string } | null;
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -230,6 +245,7 @@ export async function updateMatter(
   formData: FormData,
 ): Promise<MatterFormState> {
   await requireAdmin();
+  await assertNotArchived(matterId);
 
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return { error: "Give the matter a title." };
@@ -265,6 +281,7 @@ export async function updateMatter(
 
 export async function addKeyDate(matterId: string, formData: FormData) {
   await requireAdmin();
+  await assertNotArchived(matterId);
 
   const label = String(formData.get("label") ?? "").trim();
   const raw = String(formData.get("date") ?? "");
@@ -289,6 +306,13 @@ export async function addKeyDate(matterId: string, formData: FormData) {
 
 export async function deleteKeyDate(keyDateId: string) {
   await requireAdmin();
+
+  const existing = await prisma.matterKeyDate.findUnique({
+    where: { id: keyDateId },
+    select: { matterId: true },
+  });
+  if (!existing) return;
+  await assertNotArchived(existing.matterId);
 
   const keyDate = await prisma.matterKeyDate.delete({
     where: { id: keyDateId },

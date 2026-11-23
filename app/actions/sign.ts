@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -176,24 +178,28 @@ export async function submitSignature(
     signerUserAgent,
   });
 
-  // Create the output document first so the stored object has a key to live at.
-  const signedDocument = await prisma.document.create({
-    data: {
-      matterId: matter.id,
-      folder: "SIGNED",
-      name: `${title} — signed.pdf`,
-    },
-  });
+  // The id is chosen here rather than by the database, so the bytes can be
+  // written before any row exists. A failed write then leaves nothing behind,
+  // instead of a document with no versions that breaks the Documents tab.
+  const signedDocumentId = randomUUID();
 
   const stored = await putObject(
-    documentKey(matter.id, signedDocument.id, 1),
+    documentKey(matter.id, signedDocumentId, 1),
     signedPdf,
   );
 
   await prisma.$transaction([
+    prisma.document.create({
+      data: {
+        id: signedDocumentId,
+        matterId: matter.id,
+        folder: "SIGNED",
+        name: `${title} — signed.pdf`,
+      },
+    }),
     prisma.documentVersion.create({
       data: {
-        documentId: signedDocument.id,
+        documentId: signedDocumentId,
         versionNo: 1,
         storageKey: stored.key,
         sha256: stored.sha256,
@@ -212,7 +218,7 @@ export async function submitSignature(
         signatureMethod: method,
         signerIp,
         signerUserAgent,
-        signedDocumentId: signedDocument.id,
+        signedDocumentId,
         signedSha256: stored.sha256,
       },
     }),

@@ -65,7 +65,11 @@ npm test
 npm run test:e2e
 ```
 
-- [ ] **6 teste kalojnë** (marrin rreth një minutë e gjysmë)
+- [ ] **10 teste kalojnë** (marrin rreth dy minuta)
+
+Katër prej tyre janë kontrolle aksesueshmërie me axe: faqja e hyrjes, faqet e
+zyrës, tabs-at e një lënde dhe faqet e klientit. Dështojnë në çdo shkelje
+serioze.
 
 Testet end-to-end nënshkruajnë dokumente, pra i ndryshojnë të dhënat. Nëse do
 t'i rikthesh në gjendjen fillestare:

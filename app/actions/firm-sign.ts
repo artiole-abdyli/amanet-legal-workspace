@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -45,7 +47,14 @@ export async function signAsFirm(
       document: {
         select: {
           name: true,
-          matter: { select: { id: true, firmId: true, reference: true } },
+          matter: {
+        select: {
+          id: true,
+          firmId: true,
+          reference: true,
+          archivedAt: true,
+        },
+      },
         },
       },
     },
@@ -53,6 +62,12 @@ export async function signAsFirm(
 
   if (!version) {
     return { error: "That document is no longer in this matter." };
+  }
+
+  // The page refuses an archived matter, but a form left open in another tab
+  // posts straight to here.
+  if (version.document.matter.archivedAt) {
+    return { error: "This matter is archived and cannot be changed." };
   }
 
   const method = formData.get("method") === "TYPED" ? "TYPED" : "DRAWN";
@@ -80,23 +95,27 @@ export async function signAsFirm(
     signerUserAgent,
   });
 
-  const signedDocument = await prisma.document.create({
-    data: {
-      matterId,
-      folder: "SIGNED",
-      name: `${title} — signed by the firm.pdf`,
-    },
-  });
+  // Chosen here so the bytes land before any row does; see the same note in
+  // app/actions/sign.ts.
+  const signedDocumentId = randomUUID();
 
   const stored = await putObject(
-    documentKey(matterId, signedDocument.id, 1),
+    documentKey(matterId, signedDocumentId, 1),
     signedPdf,
   );
 
   await prisma.$transaction([
+    prisma.document.create({
+      data: {
+        id: signedDocumentId,
+        matterId,
+        folder: "SIGNED",
+        name: `${title} — signed by the firm.pdf`,
+      },
+    }),
     prisma.documentVersion.create({
       data: {
-        documentId: signedDocument.id,
+        documentId: signedDocumentId,
         versionNo: 1,
         storageKey: stored.key,
         sha256: stored.sha256,
@@ -121,7 +140,7 @@ export async function signAsFirm(
         signatureMethod: method,
         signerIp,
         signerUserAgent,
-        signedDocumentId: signedDocument.id,
+        signedDocumentId,
         signedSha256: stored.sha256,
       },
     }),

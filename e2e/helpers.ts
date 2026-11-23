@@ -13,23 +13,37 @@ export async function signIn(page: Page) {
   await expect(page.getByRole("link", { name: "Dashboard" })).toBeVisible();
 }
 
+const LINK_PATTERN = {
+  sign: /https?:\/\/\S+\/sign\/[A-Za-z0-9_-]+/,
+  upload: /https?:\/\/\S+\/upload\/[A-Za-z0-9_-]+/,
+} as const;
+
 /**
- * Reads the most recent secure link out of the outbox.
+ * Reads the newest secure link out of the outbox.
  *
  * The emails the workspace sends are rendered at /emails, which makes them the
  * natural place for a test to pick up a link, exactly as a client would from
  * their inbox. Nothing is read out of the database: the token only ever exists
  * in the message.
+ *
+ * Messages are listed newest first, and the seeded ones carry no link, so this
+ * takes the first link of the right kind rather than assuming it is in the
+ * very first message.
  */
 export async function latestLink(
   page: Page,
   kind: "sign" | "upload",
 ): Promise<string> {
   await page.goto("/emails");
-  const body = await page.locator("pre").first().innerText();
-  const match = new RegExp(`https?://[^\\s]+/${kind}/[A-Za-z0-9_-]+`).exec(body);
-  expect(match, `no ${kind} link in the newest message`).not.toBeNull();
-  return match![0];
+
+  const bodies = await page.locator("pre").allInnerTexts();
+
+  for (const body of bodies) {
+    const match = LINK_PATTERN[kind].exec(body);
+    if (match) return match[0];
+  }
+
+  throw new Error(`no ${kind} link in any of the ${bodies.length} messages`);
 }
 
 /** Draws a short stroke across the signature pad. */

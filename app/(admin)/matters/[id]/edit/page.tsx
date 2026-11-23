@@ -28,7 +28,7 @@ function dateInputValue(date: Date | null): string {
 async function EditMatter({ params }: { params: Params }) {
   const { id } = await params;
   const matter = await getMatter(id);
-  if (!matter) notFound();
+  if (!matter || matter.archivedAt) notFound();
 
   return (
     <FormPage

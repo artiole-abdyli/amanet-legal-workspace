@@ -69,11 +69,13 @@ export function rateLimit(
 }
 
 /**
- * The caller's address, as far as it can be trusted.
+ * A key for the caller's address.
  *
- * Behind a proxy this is a header the client could set, so it is good enough
- * to slow a casual attacker down and no more. It is never used to decide who
- * someone is.
+ * Only meaningful behind a proxy that overwrites `x-forwarded-for`. Served
+ * directly, the header is whatever the client sends, so this must not be the
+ * only thing standing between an attacker and a password: anything guarding a
+ * secret keys on the account instead. It is never used to decide who someone
+ * is.
  */
 export async function callerKey(prefix: string): Promise<string> {
   const headerList = await headers();

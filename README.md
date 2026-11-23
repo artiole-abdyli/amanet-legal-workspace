@@ -187,6 +187,12 @@ npm run db:reset
 npm run test:e2e
 ```
 
+`e2e/accessibility.spec.ts` runs axe over the login page, every workspace
+page, each tab of a matter and both client pages, and fails on any serious or
+critical violation. It found one: the faint text colour sat at 3.7:1 against
+white, short of the 4.5:1 that WCAG AA asks for, and it is now 4.9:1 on every
+surface it appears on.
+
 The signing test is the one worth reading. It signs in, sends the purchase
 contract for signature, then picks the link out of **/emails** exactly as a
 client would pick it out of their inbox — the token is never read from the

@@ -3,12 +3,7 @@
 import { redirect } from "next/navigation";
 
 import { verifyPassword } from "@/lib/password";
-import {
-  callerKey,
-  isRateLimited,
-  rateLimit,
-  waitMessage,
-} from "@/lib/rate-limit";
+import { isRateLimited, rateLimit, waitMessage } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { createSession, destroySession } from "@/lib/session";
 
@@ -25,10 +20,11 @@ export async function signIn(
     return { error: "Enter your email address and password." };
   }
 
-  // Ten wrong guesses in fifteen minutes from one address. A password is the
-  // only secret here a person could plausibly guess, and only the wrong
-  // guesses are counted: signing in correctly should not use up the budget.
-  const key = await callerKey("login");
+  // Ten wrong guesses in fifteen minutes, counted per account rather than per
+  // address: served without a proxy in front, the address comes from a header
+  // the caller sets, so an attacker would simply vary it. Only wrong guesses
+  // are counted, because signing in correctly should not spend the budget.
+  const key = `login:${email}`;
   const gate = isRateLimited(key, 10);
   if (!gate.ok) {
     return {
