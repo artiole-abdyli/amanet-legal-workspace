@@ -217,3 +217,91 @@ export async function addNote(matterId: string, formData: FormData) {
   ]);
   revalidatePath(`/matters/${matterId}`);
 }
+
+/**
+ * Editing a matter after it is open.
+ *
+ * Status has its own control in the matter header, but it belongs here too:
+ * both call this layer, so the activity log reads the same either way.
+ */
+export async function updateMatter(
+  matterId: string,
+  _previous: MatterFormState,
+  formData: FormData,
+): Promise<MatterFormState> {
+  await requireAdmin();
+
+  const title = String(formData.get("title") ?? "").trim();
+  if (!title) return { error: "Give the matter a title." };
+
+  const rawDeadline = String(formData.get("deadline") ?? "");
+  const deadline = rawDeadline ? new Date(`${rawDeadline}T12:00:00`) : null;
+
+  await prisma.$transaction([
+    prisma.matter.update({
+      where: { id: matterId },
+      data: {
+        title,
+        practiceArea: String(formData.get("practiceArea") ?? "Property"),
+        priority: (formData.get("priority") as Priority) ?? "MEDIUM",
+        status: (formData.get("status") as MatterStatus) ?? "ACTIVE",
+        deadline,
+      },
+    }),
+    prisma.activityEvent.create({
+      data: {
+        matterId,
+        type: "MATTER",
+        summary: "Matter details updated",
+        ...ACTOR,
+      },
+    }),
+  ]);
+
+  revalidatePath(`/matters/${matterId}`);
+  revalidatePath("/matters");
+  redirect(`/matters/${matterId}`);
+}
+
+export async function addKeyDate(matterId: string, formData: FormData) {
+  await requireAdmin();
+
+  const label = String(formData.get("label") ?? "").trim();
+  const raw = String(formData.get("date") ?? "");
+  if (!label || !raw) return;
+
+  const date = new Date(`${raw}T12:00:00`);
+
+  await prisma.$transaction([
+    prisma.matterKeyDate.create({ data: { matterId, label, date } }),
+    prisma.activityEvent.create({
+      data: {
+        matterId,
+        type: "MATTER",
+        summary: `Key date added: ${label}`,
+        ...ACTOR,
+      },
+    }),
+  ]);
+
+  revalidatePath(`/matters/${matterId}`);
+}
+
+export async function deleteKeyDate(keyDateId: string) {
+  await requireAdmin();
+
+  const keyDate = await prisma.matterKeyDate.delete({
+    where: { id: keyDateId },
+  });
+
+  await prisma.activityEvent.create({
+    data: {
+      matterId: keyDate.matterId,
+      type: "MATTER",
+      summary: `Key date removed: ${keyDate.label}`,
+      ...ACTOR,
+    },
+  });
+
+  revalidatePath(`/matters/${keyDate.matterId}`);
+}

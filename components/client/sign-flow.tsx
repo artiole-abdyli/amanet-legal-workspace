@@ -1,26 +1,19 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 
 import { markStarted, submitSignature } from "@/app/actions/sign";
-import { Icon } from "@/components/icons";
-import { Button } from "@/components/ui/button";
 import { ClientState } from "@/components/client/shell";
+import { Icon } from "@/components/icons";
+import {
+  SignaturePad,
+  type SignatureValue,
+} from "@/components/signature-pad";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { firstName } from "@/lib/format";
 
 type Step = "review" | "sign";
-
-const SIGNATURE_WIDTH = 640;
-const SIGNATURE_HEIGHT = 150;
-
-function signatureFont() {
-  if (typeof window === "undefined") return "cursive";
-  const family = getComputedStyle(document.documentElement)
-    .getPropertyValue("--font-signature")
-    .trim();
-  return family ? `${family}, cursive` : "cursive";
-}
 
 export function SignFlow({
   token,
@@ -38,140 +31,23 @@ export function SignFlow({
   pdfUrl: string;
 }) {
   const [step, setStep] = useState<Step>("review");
-  const [mode, setMode] = useState<"DRAWN" | "TYPED">("DRAWN");
-  const [typedName, setTypedName] = useState(signerName);
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [signature, setSignature] = useState<SignatureValue>(null);
   const [consent, setConsent] = useState(false);
-  const [started, setStarted] = useState(false);
   const [, startTransition] = useTransition();
 
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawing = useRef(false);
-  const lastPoint = useRef<{ x: number; y: number } | null>(null);
-  const typedRender = useRef(0);
-
   const [state, formAction, pending] = useActionState(
-    async (_previous: Awaited<ReturnType<typeof submitSignature>> | null, formData: FormData) =>
-      submitSignature(token, formData),
+    async (
+      _previous: Awaited<ReturnType<typeof submitSignature>> | null,
+      formData: FormData,
+    ) => submitSignature(token, formData),
     null,
   );
 
   function noteStarted() {
-    if (started) return;
-    setStarted(true);
     startTransition(async () => {
       await markStarted(token);
     });
   }
-
-  // --- Drawing -------------------------------------------------------------
-
-  function setUpCanvas() {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-    const ratio = Math.max(1, window.devicePixelRatio || 1);
-    const rect = canvas.getBoundingClientRect();
-    if (canvas.width !== Math.round(rect.width * ratio)) {
-      canvas.width = Math.round(rect.width * ratio);
-      canvas.height = Math.round(rect.height * ratio);
-    }
-    const context = canvas.getContext("2d");
-    if (!context) return null;
-    context.setTransform(ratio, 0, 0, ratio, 0, 0);
-    context.lineWidth = 2.4;
-    context.lineCap = "round";
-    context.lineJoin = "round";
-    context.strokeStyle = "#1b2b4f";
-    context.fillStyle = "#1b2b4f";
-    return context;
-  }
-
-  useEffect(() => {
-    if (step === "sign" && mode === "DRAWN") setUpCanvas();
-  }, [step, mode]);
-
-  function pointFrom(event: React.PointerEvent<HTMLCanvasElement>) {
-    const rect = event.currentTarget.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-  }
-
-  function onPointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
-    const context = setUpCanvas();
-    if (!context) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    drawing.current = true;
-    const point = pointFrom(event);
-    lastPoint.current = point;
-    context.beginPath();
-    context.arc(point.x, point.y, 1.2, 0, Math.PI * 2);
-    context.fill();
-    noteStarted();
-  }
-
-  function onPointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
-    if (!drawing.current) return;
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    if (!context || !lastPoint.current) return;
-    const point = pointFrom(event);
-    context.beginPath();
-    context.moveTo(lastPoint.current.x, lastPoint.current.y);
-    context.lineTo(point.x, point.y);
-    context.stroke();
-    lastPoint.current = point;
-  }
-
-  function endStroke() {
-    if (!drawing.current) return;
-    drawing.current = false;
-    const canvas = canvasRef.current;
-    if (canvas) setDataUrl(canvas.toDataURL("image/png"));
-  }
-
-  function clearPad() {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    if (!canvas || !context) return;
-    context.save();
-    context.setTransform(1, 0, 0, 1, 0, 0);
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.restore();
-    setDataUrl(null);
-  }
-
-  // --- Typed ---------------------------------------------------------------
-
-  // Rendering happens in the event that caused it rather than in an effect, so
-  // there is no cascading render and no stale image between keystrokes.
-  async function renderTyped(rawName: string) {
-    const name = rawName.trim();
-    if (!name) {
-      setDataUrl(null);
-      return;
-    }
-
-    const attempt = ++typedRender.current;
-    const font = signatureFont();
-    try {
-      await document.fonts.load(`60px ${font}`);
-    } catch {
-      // If the webfont is unavailable the fallback still renders.
-    }
-    if (attempt !== typedRender.current) return;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = SIGNATURE_WIDTH;
-    canvas.height = SIGNATURE_HEIGHT;
-    const context = canvas.getContext("2d");
-    if (!context) return;
-    context.fillStyle = "#1b2b4f";
-    context.font = `60px ${font}`;
-    context.textBaseline = "middle";
-    context.fillText(name, 12, SIGNATURE_HEIGHT / 2);
-    setDataUrl(canvas.toDataURL("image/png"));
-  }
-
-  // --- Done ----------------------------------------------------------------
 
   if (state?.ok) {
     return (
@@ -204,7 +80,7 @@ export function SignFlow({
     );
   }
 
-  const ready = Boolean(dataUrl) && consent;
+  const ready = Boolean(signature) && consent;
 
   return (
     <>
@@ -265,90 +141,13 @@ export function SignFlow({
         </>
       ) : (
         <form action={formAction} className="flex flex-col gap-5">
-          <input type="hidden" name="signature" value={dataUrl ?? ""} />
-          <input type="hidden" name="method" value={mode} />
-
           <section className="flex flex-col gap-3.5 rounded-card border border-line bg-surface p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="font-sans text-[17px] font-semibold">
-                Add your signature
-              </h2>
-              <div
-                role="tablist"
-                className="inline-flex gap-0.5 rounded-lg bg-surface-2 p-[3px]"
-              >
-                {(["DRAWN", "TYPED"] as const).map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    role="tab"
-                    aria-selected={mode === value}
-                    onClick={() => {
-                      setMode(value);
-                      setDataUrl(null);
-                      if (value === "TYPED") void renderTyped(typedName);
-                    }}
-                    className={cn(
-                      "cursor-pointer rounded-md px-3.5 py-1.5 font-medium",
-                      mode === value
-                        ? "bg-surface text-fg shadow-sm"
-                        : "text-muted",
-                    )}
-                  >
-                    {value === "DRAWN" ? "Draw" : "Type"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {mode === "DRAWN" ? (
-              <div className="relative h-[180px] rounded-lg border border-dashed border-line-strong bg-paper">
-                <canvas
-                  ref={canvasRef}
-                  onPointerDown={onPointerDown}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={endStroke}
-                  onPointerLeave={endStroke}
-                  onPointerCancel={endStroke}
-                  aria-label="Signature pad. Draw with your finger or mouse, or switch to Type."
-                  className="size-full touch-none rounded-lg"
-                />
-                <span className="pointer-events-none absolute inset-x-6 bottom-[42px] border-t border-[#b8bdb9]" />
-                <span className="pointer-events-none absolute bottom-4 left-6 text-xs text-[#6b716d]">
-                  Sign above the line
-                </span>
-                <button
-                  type="button"
-                  onClick={clearPad}
-                  className="absolute top-2.5 right-3.5 cursor-pointer font-medium text-accent underline underline-offset-[3px]"
-                >
-                  Clear
-                </button>
-              </div>
-            ) : (
-              <>
-                <label className="flex flex-col gap-1.5 text-[13px] font-medium">
-                  Your full name
-                  <input
-                    value={typedName}
-                    onChange={(event) => {
-                      setTypedName(event.target.value);
-                      void renderTyped(event.target.value);
-                      noteStarted();
-                    }}
-                    autoComplete="name"
-                    className="rounded-lg border border-line bg-surface px-2.5 py-2 font-normal focus:border-muted focus:outline-none"
-                  />
-                </label>
-                <div
-                  aria-hidden="true"
-                  className="flex min-h-[110px] items-center overflow-hidden rounded-lg border border-dashed border-line-strong bg-paper px-6 text-[46px] whitespace-nowrap text-signature-ink"
-                  style={{ fontFamily: "var(--font-signature), cursive" }}
-                >
-                  {typedName}
-                </div>
-              </>
-            )}
+            <SignaturePad
+              signerName={signerName}
+              value={signature}
+              onChange={setSignature}
+              onFirstInput={noteStarted}
+            />
 
             <label className="flex cursor-pointer items-start gap-2.5 text-[13.5px]">
               <input
@@ -388,10 +187,8 @@ export function SignFlow({
 
           {!ready ? (
             <p aria-live="polite" className="text-right text-[12.5px] text-muted">
-              {!dataUrl
-                ? mode === "DRAWN"
-                  ? "Draw your signature in the box to continue."
-                  : "Type your name to continue."
+              {!signature
+                ? "Draw or type your signature to continue."
                 : "Tick the box to confirm you agree to sign electronically."}
             </p>
           ) : null}

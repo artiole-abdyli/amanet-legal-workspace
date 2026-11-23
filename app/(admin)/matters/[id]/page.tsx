@@ -64,7 +64,10 @@ async function MatterView({
 
   return (
     <>
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-muted">
+      <nav
+        aria-label="Breadcrumb"
+        className="flex items-center gap-2 text-muted"
+      >
         <Link href="/matters" className="hover:text-fg">
           Matters
         </Link>
@@ -107,7 +110,9 @@ async function MatterView({
             <span className="font-mono">{matter.reference}</span>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <Badge tone={archived ? "neutral" : matterStatusTone[matter.status]}>
+            <Badge
+              tone={archived ? "neutral" : matterStatusTone[matter.status]}
+            >
               {archived ? "Archived" : matterStatusLabel[matter.status]}
             </Badge>
             <PriorityMeter priority={matter.priority} />
@@ -123,6 +128,15 @@ async function MatterView({
             status={matter.status}
             disabled={archived}
           />
+          {archived ? null : (
+            <Link
+              href={`/matters/${matter.id}/edit`}
+              className={buttonClasses("default")}
+            >
+              <Icon name="pen" />
+              Edit
+            </Link>
+          )}
           <Link
             href={`/matters/${matter.id}/request-documents`}
             className={buttonClasses("default")}

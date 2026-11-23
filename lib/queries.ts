@@ -474,3 +474,36 @@ export async function getClientOptions() {
     select: { id: true, name: true },
   });
 }
+
+// --- Email ------------------------------------------------------------------
+
+export const EMAILS_PER_PAGE = 10;
+
+/**
+ * The outbox.
+ *
+ * Every message the workspace sends is a row here, so the whole email side of
+ * the brief can be read back without an SMTP server. In production the same
+ * rows are the delivery log.
+ */
+export async function getEmails(page = 1) {
+  await requireAdmin();
+
+  const total = await prisma.emailMessage.count();
+  const pageCount = Math.max(1, Math.ceil(total / EMAILS_PER_PAGE));
+  const current = Math.min(pageCount, Math.max(1, Math.trunc(page) || 1));
+
+  const emails = await prisma.emailMessage.findMany({
+    orderBy: { createdAt: "desc" },
+    skip: (current - 1) * EMAILS_PER_PAGE,
+    take: EMAILS_PER_PAGE,
+  });
+
+  return {
+    emails,
+    total,
+    page: current,
+    perPage: EMAILS_PER_PAGE,
+    pageCount,
+  };
+}

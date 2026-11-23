@@ -115,6 +115,15 @@ export async function DocumentsTab({ matterId }: { matterId: string }) {
                               Send for signature
                             </Link>
                           ) : null}
+                          {folder !== "SIGNED" && !archived ? (
+                            <Link
+                              href={`/matters/${matterId}/sign/${document.id}`}
+                              className={buttonClasses("default", "sm")}
+                            >
+                              <Icon name="pen" className="size-4" />
+                              Sign
+                            </Link>
+                          ) : null}
                           <a
                             href={`/api/documents/${latest.id}`}
                             target="_blank"

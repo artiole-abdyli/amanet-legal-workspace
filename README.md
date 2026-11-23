@@ -37,6 +37,7 @@ state can be opened directly.
 | `npm run db:seed` | Re-seed without dropping the schema |
 | `npm run db:reset` | Drop, re-migrate and re-seed |
 | `npm run db:studio` | Browse the data in Prisma Studio |
+| `npm test` | Run the unit tests (no database needed) |
 
 ## Stack
 
@@ -51,8 +52,8 @@ state can be opened directly.
 
 Postgres is the only service that needs a container. Files are written to
 `STORAGE_DIR`, and outgoing mail is written to the `EmailMessage` table and
-shown inside the app, so the whole flow is reviewable without an SMTP server or
-object storage.
+rendered at **/emails**, so every message the workspace sends, and the secure
+link it carried, can be read without an SMTP server or object storage.
 
 ## How the data is kept honest
 
@@ -101,7 +102,8 @@ client-facing pages are built mobile-first, because that is where people sign.
 
 **The firm's workspace.** A dashboard of what needs attention, upcoming key
 dates and recent activity; a matters list with URL-driven search, status,
-priority and sort filters; client records; and a matter page with Overview,
+priority and sort filters, paged five at a time; client records; and a matter
+page with Overview,
 Documents, Client requests, Signatures, Tasks & notes and Activity. Ctrl-K
 opens search over matters, clients and documents from anywhere.
 
@@ -117,6 +119,11 @@ Viewed, Started and Signed, send a reminder, or revoke the link. The client
 reviews the PDF, draws or types a signature, and the signed PDF is produced with
 `pdf-lib`, carrying a certificate of completion with the signer, the timestamps
 and the SHA-256 of the source.
+
+The Admin can also sign a document in place, including a file a client
+uploaded, from the Sign button in the document list. It runs through the same
+stamping and records the same kind of `SignatureRequest`, so the Signatures tab
+shows one history whoever put pen to the page.
 
 **Client pages.** Secure upload and signing pages built mobile-first, with a
 designed outcome for every dead end: expired, revoked, already used, already
@@ -147,9 +154,29 @@ Client routes are deliberately outside that gate: `/sign/[token]` and
 `/upload/[token]` are authorised by the link itself, checked in
 `lib/link-access.ts`.
 
+## Tests
+
+`npm test` runs without a database or a browser, so it works on a clean
+checkout. The suite covers the parts where a quiet mistake would be expensive
+rather than merely visible:
+
+- **Passwords.** Round trip, wrong password, and a corrupt stored value
+  returning false instead of throwing.
+- **Secure links.** 32 bytes of entropy, a hash the token cannot be read out
+  of, and a different pepper giving a different hash, which is the property
+  that makes a stolen database useless.
+- **Signature images.** A data URL claiming to be a PNG while carrying HTML is
+  refused, as is one too large to be a signature.
+- **Storage keys.** Keys built from client-supplied names cannot walk out of
+  the storage directory.
+- **Deadlines.** An overdue date reads as overdue rather than as a date.
+- **PDF signing.** The certificate page is appended and the source bytes are
+  left untouched.
+
 ## Not done yet
 
-- Tests.
+- End-to-end tests. The unit tests cover the libraries; the flows through the
+  screens are checked by hand.
 - The email provider adapter. Messages are written to `EmailMessage` and the
   outbox transport marks them sent; delivery through a provider is the step
   after that.

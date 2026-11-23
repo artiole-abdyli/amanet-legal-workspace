@@ -12,6 +12,7 @@ const NAV: { href: string; label: string; icon: IconName }[] = [
   { href: "/", label: "Dashboard", icon: "home" },
   { href: "/matters", label: "Matters", icon: "folder" },
   { href: "/clients", label: "Clients", icon: "users" },
+  { href: "/emails", label: "Email", icon: "mail" },
 ];
 
 export function Sidebar({

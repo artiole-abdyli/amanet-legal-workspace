@@ -8,6 +8,7 @@ import { documentTitle } from "@/lib/format";
 import { openSigningLink } from "@/lib/link-access";
 import { stampSignature } from "@/lib/pdf/sign";
 import { prisma } from "@/lib/prisma";
+import { decodeSignaturePng } from "@/lib/signature-image";
 import { documentKey, getObject, putObject } from "@/lib/storage";
 
 /**
@@ -97,17 +98,6 @@ export async function markStarted(token: string) {
   revalidatePath(`/matters/${signature.matter.id}`);
 }
 
-function decodePng(dataUrl: string): Uint8Array | null {
-  const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
-  if (!match) return null;
-  const bytes = Buffer.from(match[1], "base64");
-  // A PNG always starts with this signature; anything else is not an image.
-  const magic = [0x89, 0x50, 0x4e, 0x47];
-  if (bytes.length < 8 || magic.some((byte, i) => bytes[i] !== byte)) return null;
-  if (bytes.byteLength > 2_000_000) return null;
-  return new Uint8Array(bytes);
-}
-
 export async function submitSignature(
   token: string,
   formData: FormData,
@@ -141,7 +131,7 @@ export async function submitSignature(
     };
   }
 
-  const image = decodePng(String(formData.get("signature") ?? ""));
+  const image = decodeSignaturePng(String(formData.get("signature") ?? ""));
   if (!image) {
     return { ok: false, message: "Your signature did not come through. Please try again." };
   }
