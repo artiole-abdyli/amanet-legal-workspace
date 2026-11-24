@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 
 import { prisma } from "@/lib/prisma";
-import { hashSecureToken } from "@/lib/secure-link";
+import { SIGNED_COPY_DAYS, hashSecureToken } from "@/lib/secure-link";
 
 /**
  * The one place a secure link is turned into permission to do something.
@@ -137,4 +137,51 @@ export async function openCompletedSigningLink(token: string) {
   if (link.signatureRequest.status !== "SIGNED") return null;
 
   return link.signatureRequest;
+}
+
+/**
+ * The signed PDF for a spent signing link, while the download window is open.
+ *
+ * Like `openCompletedSigningLink` it grants nothing but a read, and only of
+ * the one document the link produced. A revoked link (the firm pressed stop
+ * after the fact) or one past the window gets nothing.
+ */
+export async function openSignedCopy(token: string) {
+  await connection();
+
+  const link = await prisma.secureLink.findUnique({
+    where: { tokenHash: hashSecureToken(token) },
+    select: {
+      purpose: true,
+      revokedAt: true,
+      signatureRequest: {
+        select: {
+          status: true,
+          signedAt: true,
+          signedDocument: {
+            select: {
+              name: true,
+              versions: {
+                orderBy: { versionNo: "desc" },
+                take: 1,
+                select: { storageKey: true, mimeType: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const signature = link?.signatureRequest;
+  if (!link || link.purpose !== "SIGN" || link.revokedAt) return null;
+  if (!signature || signature.status !== "SIGNED" || !signature.signedAt) return null;
+
+  const closesAt = signature.signedAt.getTime() + SIGNED_COPY_DAYS * 86_400_000;
+  if (Date.now() > closesAt) return null;
+
+  const version = signature.signedDocument?.versions[0];
+  if (!version || !signature.signedDocument) return null;
+
+  return { name: signature.signedDocument.name, ...version };
 }

@@ -2,10 +2,13 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { ClientShell, ClientState } from "@/components/client/shell";
+import { Icon } from "@/components/icons";
+import { buttonClasses } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { documentTitle, firstName, formatDateTime } from "@/lib/format";
 import { openCompletedSigningLink } from "@/lib/link-access";
 import { getFirm } from "@/lib/queries";
+import { SIGNED_COPY_DAYS } from "@/lib/secure-link";
 
 export const metadata = { title: "Signed" };
 
@@ -52,7 +55,7 @@ async function Done({ params }: { params: Params }) {
               </dd>
             </div>
             <div className="flex justify-between gap-4 py-1">
-              <dt className="text-muted">Copy sent to</dt>
+              <dt className="text-muted">Email sent to</dt>
               <dd className="min-w-0 text-right font-mono text-[13px] break-all">
                 {signature.signerEmail}
               </dd>
@@ -60,8 +63,19 @@ async function Done({ params }: { params: Params }) {
           </dl>
         }
       >
-        {firm.name} has been notified. A signed copy with its certificate of
-        completion has been emailed to you. You can close this page.
+        {firm.name} has been notified. Your signed copy, with its certificate
+        of completion, can be downloaded below for the next {SIGNED_COPY_DAYS}{" "}
+        days; the same link is in the email we sent you.
+        <span className="mt-4 flex justify-center">
+          <a
+            href={`/sign/${token}/signed`}
+            className={buttonClasses("primary")}
+            download
+          >
+            <Icon name="download" />
+            Download signed copy
+          </a>
+        </span>
       </ClientState>
     </ClientShell>
   );

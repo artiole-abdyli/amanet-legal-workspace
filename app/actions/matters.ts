@@ -1,6 +1,10 @@
 "use server";
 
-import { requireAdmin } from "@/lib/auth";
+import {
+  ArchivedMatterError,
+  assertMatterWritable,
+  requireAdminActor,
+} from "@/lib/admin";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -16,23 +20,6 @@ import { getFirm } from "@/lib/queries";
  * Each one writes its ActivityEvent in the same transaction as the change, so
  * the history and the data cannot disagree.
  */
-
-const ACTOR = { actorType: "ADMIN" as const, actorName: "Elena Vance" };
-
-/**
- * Archiving makes a matter read-only, and the buttons disappear with it. That
- * is the interface's half of the promise; this is the server's. A form left
- * open in another tab, or a direct POST, must not be able to write to a matter
- * the workspace shows as closed.
- */
-async function assertNotArchived(matterId: string) {
-  const matter = await prisma.matter.findUnique({
-    where: { id: matterId },
-    select: { archivedAt: true },
-  });
-  if (!matter) throw new Error("Matter not found");
-  if (matter.archivedAt) throw new Error("This matter is archived");
-}
 
 export type MatterFormState = { error: string } | null;
 
@@ -59,7 +46,7 @@ export async function createMatter(
   _previous: MatterFormState,
   formData: FormData,
 ): Promise<MatterFormState> {
-  await requireAdmin();
+  const { actor } = await requireAdminActor();
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return { error: "Give the matter a title." };
 
@@ -107,7 +94,7 @@ export async function createMatter(
         create: {
           type: "MATTER",
           summary: "Matter opened",
-          ...ACTOR,
+          ...actor,
         },
       },
     },
@@ -118,7 +105,8 @@ export async function createMatter(
 }
 
 export async function setMatterStatus(matterId: string, status: MatterStatus) {
-  await requireAdmin();
+  const { actor } = await requireAdminActor();
+  await assertMatterWritable(matterId);
   await prisma.$transaction([
     prisma.matter.update({ where: { id: matterId }, data: { status } }),
     prisma.activityEvent.create({
@@ -126,7 +114,7 @@ export async function setMatterStatus(matterId: string, status: MatterStatus) {
         matterId,
         type: "MATTER",
         summary: `Status changed to ${matterStatusLabel[status]}`,
-        ...ACTOR,
+        ...actor,
       },
     }),
   ]);
@@ -134,7 +122,7 @@ export async function setMatterStatus(matterId: string, status: MatterStatus) {
 }
 
 export async function archiveMatter(matterId: string) {
-  await requireAdmin();
+  const { actor } = await requireAdminActor();
   await prisma.$transaction([
     prisma.matter.update({
       where: { id: matterId },
@@ -145,7 +133,7 @@ export async function archiveMatter(matterId: string) {
         matterId,
         type: "MATTER",
         summary: "Matter archived",
-        ...ACTOR,
+        ...actor,
       },
     }),
   ]);
@@ -154,7 +142,7 @@ export async function archiveMatter(matterId: string) {
 }
 
 export async function restoreMatter(matterId: string) {
-  await requireAdmin();
+  const { actor } = await requireAdminActor();
   await prisma.$transaction([
     prisma.matter.update({
       where: { id: matterId },
@@ -165,7 +153,7 @@ export async function restoreMatter(matterId: string) {
         matterId,
         type: "MATTER",
         summary: "Matter restored from the archive",
-        ...ACTOR,
+        ...actor,
       },
     }),
   ]);
@@ -174,24 +162,35 @@ export async function restoreMatter(matterId: string) {
 }
 
 export async function toggleTask(taskId: string, done: boolean) {
-  await requireAdmin();
-  const task = await prisma.task.update({
+  const { actor } = await requireAdminActor();
+
+  const existing = await prisma.task.findUniqueOrThrow({
     where: { id: taskId },
-    data: { completedAt: done ? new Date() : null },
+    select: { matterId: true },
   });
-  await prisma.activityEvent.create({
-    data: {
-      matterId: task.matterId,
-      type: "TASK",
-      summary: `${done ? "Completed" : "Reopened"} task: ${task.title}`,
-      ...ACTOR,
-    },
+  await assertMatterWritable(existing.matterId);
+
+  await prisma.$transaction(async (tx) => {
+    const task = await tx.task.update({
+      where: { id: taskId },
+      data: { completedAt: done ? new Date() : null },
+    });
+    await tx.activityEvent.create({
+      data: {
+        matterId: task.matterId,
+        type: "TASK",
+        summary: `${done ? "Completed" : "Reopened"} task: ${task.title}`,
+        ...actor,
+      },
+    });
   });
-  revalidatePath(`/matters/${task.matterId}`);
+
+  revalidatePath(`/matters/${existing.matterId}`);
 }
 
 export async function addTask(matterId: string, formData: FormData) {
-  await requireAdmin();
+  const { actor } = await requireAdminActor();
+  await assertMatterWritable(matterId);
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return;
 
@@ -205,7 +204,7 @@ export async function addTask(matterId: string, formData: FormData) {
         matterId,
         type: "TASK",
         summary: `Task added: ${title}`,
-        ...ACTOR,
+        ...actor,
       },
     }),
   ]);
@@ -213,20 +212,21 @@ export async function addTask(matterId: string, formData: FormData) {
 }
 
 export async function addNote(matterId: string, formData: FormData) {
-  await requireAdmin();
+  const { actor } = await requireAdminActor();
+  await assertMatterWritable(matterId);
   const body = String(formData.get("body") ?? "").trim();
   if (!body) return;
 
   await prisma.$transaction([
     prisma.note.create({
-      data: { matterId, body, authorName: ACTOR.actorName },
+      data: { matterId, body, authorName: actor.actorName },
     }),
     prisma.activityEvent.create({
       data: {
         matterId,
         type: "NOTE",
         summary: "Internal note added",
-        ...ACTOR,
+        ...actor,
       },
     }),
   ]);
@@ -244,8 +244,13 @@ export async function updateMatter(
   _previous: MatterFormState,
   formData: FormData,
 ): Promise<MatterFormState> {
-  await requireAdmin();
-  await assertNotArchived(matterId);
+  const { actor } = await requireAdminActor();
+  try {
+    await assertMatterWritable(matterId);
+  } catch (error) {
+    if (error instanceof ArchivedMatterError) return { error: error.message };
+    throw error;
+  }
 
   const title = String(formData.get("title") ?? "").trim();
   if (!title) return { error: "Give the matter a title." };
@@ -269,7 +274,7 @@ export async function updateMatter(
         matterId,
         type: "MATTER",
         summary: "Matter details updated",
-        ...ACTOR,
+        ...actor,
       },
     }),
   ]);
@@ -280,8 +285,8 @@ export async function updateMatter(
 }
 
 export async function addKeyDate(matterId: string, formData: FormData) {
-  await requireAdmin();
-  await assertNotArchived(matterId);
+  const { actor } = await requireAdminActor();
+  await assertMatterWritable(matterId);
 
   const label = String(formData.get("label") ?? "").trim();
   const raw = String(formData.get("date") ?? "");
@@ -296,7 +301,7 @@ export async function addKeyDate(matterId: string, formData: FormData) {
         matterId,
         type: "MATTER",
         summary: `Key date added: ${label}`,
-        ...ACTOR,
+        ...actor,
       },
     }),
   ]);
@@ -305,26 +310,28 @@ export async function addKeyDate(matterId: string, formData: FormData) {
 }
 
 export async function deleteKeyDate(keyDateId: string) {
-  await requireAdmin();
+  const { actor } = await requireAdminActor();
 
   const existing = await prisma.matterKeyDate.findUnique({
     where: { id: keyDateId },
     select: { matterId: true },
   });
   if (!existing) return;
-  await assertNotArchived(existing.matterId);
+  await assertMatterWritable(existing.matterId);
 
-  const keyDate = await prisma.matterKeyDate.delete({
-    where: { id: keyDateId },
-  });
-
-  await prisma.activityEvent.create({
-    data: {
-      matterId: keyDate.matterId,
-      type: "MATTER",
-      summary: `Key date removed: ${keyDate.label}`,
-      ...ACTOR,
-    },
+  const keyDate = await prisma.$transaction(async (tx) => {
+    const removed = await tx.matterKeyDate.delete({
+      where: { id: keyDateId },
+    });
+    await tx.activityEvent.create({
+      data: {
+        matterId: removed.matterId,
+        type: "MATTER",
+        summary: `Key date removed: ${removed.label}`,
+        ...actor,
+      },
+    });
+    return removed;
   });
 
   revalidatePath(`/matters/${keyDate.matterId}`);

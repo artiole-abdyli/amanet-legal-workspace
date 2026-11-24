@@ -40,3 +40,14 @@ export function uploadUrl(token: string): string {
   const base = process.env.APP_URL ?? "http://localhost:3000";
   return `${base}/upload/${token}`;
 }
+
+/**
+ * How long a signer can download their signed copy after signing. The signing
+ * link itself is spent the moment it is used; this window only ever grants a
+ * read of the finished PDF, never another signature.
+ */
+export const SIGNED_COPY_DAYS = 30;
+
+export function signedCopyUrl(token: string): string {
+  return `${signUrl(token)}/signed`;
+}

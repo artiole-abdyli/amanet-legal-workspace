@@ -1,15 +1,19 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 
 import { openUploadLink } from "@/lib/link-access";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, waitMessage } from "@/lib/rate-limit";
-import { documentKey, putObject } from "@/lib/storage";
+import { deleteObject, putObject, uniqueDocumentKey } from "@/lib/storage";
 
 export type UploadOutcome = { ok: true } | { ok: false; message: string };
 
 const MAX_BYTES = 20 * 1024 * 1024;
+
+class AlreadyAccepted extends Error {}
 
 /** A PDF always starts with these five bytes, whatever the file is named. */
 function looksLikePdf(bytes: Uint8Array) {
@@ -74,75 +78,102 @@ export async function submitClientUpload(
   const uploaderName =
     request.matter.client.contactName ?? request.matter.client.name;
 
-  // A correction becomes the next version of the same document, so the earlier
-  // file the client sent is never lost.
-  const document =
-    request.submittedDocument ??
-    (await prisma.document.create({
-      data: {
-        matterId: request.matter.id,
-        folder: "CLIENT_UPLOADS",
-        name: file.name,
-      },
-    }));
-
-  const previous = await prisma.documentVersion.findFirst({
-    where: { documentId: document.id },
-    orderBy: { versionNo: "desc" },
-    select: { versionNo: true },
-  });
-  const versionNo = (previous?.versionNo ?? 0) + 1;
-
+  // The bytes go in first under a key nothing else can use, then the rows are
+  // written under a lock on the request. Two uploads arriving together are
+  // serialised there: each sees the other's version and takes the next number,
+  // and neither can overwrite the other's file.
+  const documentId = request.submittedDocument?.id ?? randomUUID();
   const stored = await putObject(
-    documentKey(request.matter.id, document.id, versionNo),
+    uniqueDocumentKey(request.matter.id, documentId),
     bytes,
   );
 
-  await prisma.$transaction([
-    prisma.documentVersion.create({
-      data: {
-        documentId: document.id,
-        versionNo,
-        storageKey: stored.key,
-        sha256: stored.sha256,
-        byteSize: stored.byteSize,
-        uploadedByType: "CLIENT",
-        uploadedByName: uploaderName,
-      },
-    }),
-    prisma.documentRequest.update({
-      where: { id: request.id },
-      data: {
-        status: "SUBMITTED",
-        submittedAt: new Date(),
-        submittedDocumentId: document.id,
-        reviewNote: null,
-      },
-    }),
-    prisma.secureLink.update({
-      where: { id: result.linkId },
-      data: { lastSeenAt: new Date() },
-    }),
-    prisma.activityEvent.create({
-      data: {
-        matterId: request.matter.id,
-        type: "REQUEST",
-        summary: `${uploaderName} uploaded ${file.name}${
-          versionNo > 1 ? ` (v${versionNo})` : ""
-        }`,
-        actorType: "CLIENT",
-        actorName: uploaderName,
-      },
-    }),
-    prisma.notification.create({
-      data: {
-        firmId: request.matter.firmId,
-        matterId: request.matter.id,
-        text: `${uploaderName} uploaded ${file.name}`,
-        href: `/matters/${request.matter.id}?tab=requests`,
-      },
-    }),
-  ]);
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "DocumentRequest" WHERE id = ${request.id} FOR UPDATE`;
+
+      const current = await tx.documentRequest.findUniqueOrThrow({
+        where: { id: request.id },
+        select: { status: true, submittedDocumentId: true },
+      });
+      if (current.status === "ACCEPTED") throw new AlreadyAccepted();
+
+      // A correction becomes the next version of the same document, so the
+      // earlier file the client sent is never lost.
+      const targetId = current.submittedDocumentId ?? documentId;
+      if (!current.submittedDocumentId) {
+        await tx.document.create({
+          data: {
+            id: targetId,
+            matterId: request.matter.id,
+            folder: "CLIENT_UPLOADS",
+            name: file.name,
+          },
+        });
+      }
+
+      const previous = await tx.documentVersion.findFirst({
+        where: { documentId: targetId },
+        orderBy: { versionNo: "desc" },
+        select: { versionNo: true },
+      });
+      const next = (previous?.versionNo ?? 0) + 1;
+
+      await tx.documentVersion.create({
+        data: {
+          documentId: targetId,
+          versionNo: next,
+          storageKey: stored.key,
+          sha256: stored.sha256,
+          byteSize: stored.byteSize,
+          uploadedByType: "CLIENT",
+          uploadedByName: uploaderName,
+        },
+      });
+      await tx.documentRequest.update({
+        where: { id: request.id },
+        data: {
+          status: "SUBMITTED",
+          submittedAt: new Date(),
+          submittedDocumentId: targetId,
+          reviewNote: null,
+        },
+      });
+      await tx.secureLink.update({
+        where: { id: result.linkId },
+        data: { lastSeenAt: new Date() },
+      });
+      await tx.activityEvent.create({
+        data: {
+          matterId: request.matter.id,
+          type: "REQUEST",
+          summary: `${uploaderName} uploaded ${file.name}${
+            next > 1 ? ` (v${next})` : ""
+          }`,
+          actorType: "CLIENT",
+          actorName: uploaderName,
+        },
+      });
+      await tx.notification.create({
+        data: {
+          firmId: request.matter.firmId,
+          matterId: request.matter.id,
+          text: `${uploaderName} uploaded ${file.name}`,
+          href: `/matters/${request.matter.id}?tab=requests`,
+        },
+      });
+
+    });
+  } catch (error) {
+    await deleteObject(stored.key).catch(() => {});
+    if (error instanceof AlreadyAccepted) {
+      return {
+        ok: false,
+        message: "Your lawyer has already accepted this document.",
+      };
+    }
+    throw error;
+  }
 
   revalidatePath(`/matters/${request.matter.id}`);
   return { ok: true };

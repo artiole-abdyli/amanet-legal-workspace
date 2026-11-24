@@ -17,9 +17,24 @@ import { SkeletonCard } from "@/components/ui/skeleton";
 export const metadata = { title: "Upload a document" };
 
 type Params = Promise<{ id: string }>;
+type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
-async function UploadDocument({ params }: { params: Params }) {
+const ERRORS: Record<string, string> = {
+  missing: "Choose a PDF file to upload.",
+  "too-large": "That file is larger than 20 MB. Upload a smaller PDF.",
+  "not-pdf": "That file is not a PDF. Only PDF documents can be uploaded.",
+};
+
+async function UploadDocument({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Search;
+}) {
   const { id } = await params;
+  const raw = (await searchParams).error;
+  const error = ERRORS[Array.isArray(raw) ? raw[0] : (raw ?? "")];
 
   return (
     <FormPage
@@ -30,6 +45,12 @@ async function UploadDocument({ params }: { params: Params }) {
     >
       <form action={uploadMatterDocument.bind(null, id)}>
         <FormCard>
+          {error ? (
+            <div role="alert">
+              <Callout tone="warn">{error}</Callout>
+            </div>
+          ) : null}
+
           <Field label="PDF file">
             <Input
               type="file"
@@ -65,10 +86,16 @@ async function UploadDocument({ params }: { params: Params }) {
   );
 }
 
-export default function UploadDocumentPage({ params }: { params: Params }) {
+export default function UploadDocumentPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Search;
+}) {
   return (
     <Suspense fallback={<SkeletonCard rows={3} />}>
-      <UploadDocument params={params} />
+      <UploadDocument params={params} searchParams={searchParams} />
     </Suspense>
   );
 }

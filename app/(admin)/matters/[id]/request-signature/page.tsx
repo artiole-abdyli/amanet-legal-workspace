@@ -25,6 +25,12 @@ export const metadata = { title: "Request a signature" };
 type Params = Promise<{ id: string }>;
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
+const ERRORS: Record<string, string> = {
+  document: "Choose a document from this matter's Contracts folder.",
+  name: "Enter the signer's name.",
+  email: "Enter a valid email address for the signer.",
+};
+
 async function RequestSignature({
   params,
   searchParams,
@@ -33,8 +39,11 @@ async function RequestSignature({
   searchParams: Search;
 }) {
   const { id } = await params;
-  const raw = (await searchParams).document;
+  const search = await searchParams;
+  const raw = search.document;
   const preselected = Array.isArray(raw) ? raw[0] : raw;
+  const rawError = search.error;
+  const error = ERRORS[Array.isArray(rawError) ? rawError[0] : (rawError ?? "")];
 
   const [matter, documents] = await Promise.all([
     getMatter(id),
@@ -71,6 +80,12 @@ async function RequestSignature({
       ) : (
         <form action={createSignatureRequest.bind(null, id)}>
           <FormCard>
+            {error ? (
+              <div role="alert">
+                <Callout tone="warn">{error}</Callout>
+              </div>
+            ) : null}
+
             <Field
               label="Document"
               hint="The client signs this exact version. Later uploads will not change it."

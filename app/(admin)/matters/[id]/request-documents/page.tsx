@@ -20,6 +20,7 @@ import { getMatter } from "@/lib/queries";
 export const metadata = { title: "Request documents" };
 
 type Params = Promise<{ id: string }>;
+type Search = Promise<{ [key: string]: string | string[] | undefined }>;
 
 function inAWeek() {
   const date = new Date();
@@ -27,8 +28,15 @@ function inAWeek() {
   return date.toISOString().slice(0, 10);
 }
 
-async function RequestDocuments({ params }: { params: Params }) {
+async function RequestDocuments({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Search;
+}) {
   const { id } = await params;
+  const showError = (await searchParams).error === "title";
   const matter = await getMatter(id);
   if (!matter) notFound();
 
@@ -43,6 +51,12 @@ async function RequestDocuments({ params }: { params: Params }) {
     >
       <form action={createDocumentRequest.bind(null, id)}>
         <FormCard>
+          {showError ? (
+            <div role="alert">
+              <Callout tone="warn">Say which document you need.</Callout>
+            </div>
+          ) : null}
+
           <Field label="What do you need?">
             <Input name="title" required placeholder="e.g. Proof of address" />
           </Field>
@@ -87,10 +101,16 @@ async function RequestDocuments({ params }: { params: Params }) {
   );
 }
 
-export default function RequestDocumentsPage({ params }: { params: Params }) {
+export default function RequestDocumentsPage({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Search;
+}) {
   return (
     <Suspense fallback={<SkeletonCard rows={4} />}>
-      <RequestDocuments params={params} />
+      <RequestDocuments params={params} searchParams={searchParams} />
     </Suspense>
   );
 }

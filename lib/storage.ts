@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 /**
@@ -67,4 +67,21 @@ export function documentKey(
   versionNo: number,
 ): string {
   return `matters/${matterId}/documents/${documentId}/v${versionNo}.pdf`;
+}
+
+/**
+ * A key no other upload can collide with.
+ *
+ * Version numbers are only settled inside the database transaction, so the
+ * bytes are written first under a random name. Two uploads racing for the same
+ * version can then never overwrite each other's file; the loser's row is
+ * refused by the unique constraint and its file removed.
+ */
+export function uniqueDocumentKey(matterId: string, documentId: string): string {
+  return `matters/${matterId}/documents/${documentId}/${randomUUID()}.pdf`;
+}
+
+/** Best-effort removal of bytes whose row was never committed. */
+export async function deleteObject(key: string): Promise<void> {
+  await rm(/* turbopackIgnore: true */ resolveKey(key), { force: true });
 }

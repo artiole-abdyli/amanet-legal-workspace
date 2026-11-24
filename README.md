@@ -24,7 +24,15 @@ Generate the two secrets with:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-`npm run setup` prints the demo Admin login and a set of ready-made client links
+### Demo login
+
+| | |
+| --- | --- |
+| URL | http://localhost:3000/login |
+| Email | `elena.vance@harlowvance.example` |
+| Password | `workspace-demo` |
+
+`npm run setup` also prints the demo Admin login and a set of ready-made client links
 (one signing link, two upload links, and one dead link) so every client-facing
 state can be opened directly.
 
@@ -82,6 +90,29 @@ its own SHA-256 alongside the hash of the source it was made from.
 same transaction as the state change they describe, so the timeline cannot drift
 from the data. Nothing in the application updates or deletes them.
 
+And three that the server actions enforce, so a second tab or a direct POST
+cannot get round what the interface hides:
+
+**State changes are conditional.** Every transition puts the expected status in
+the `WHERE` clause (`updateMany` and a count check): only a submitted file can
+be accepted or sent back, only a live request can be revoked or reminded, and a
+signing link is spent with `usedAt: null` as a condition. Two submissions
+racing from a double click both pass the first check, but only one can spend
+the link; the other rolls back and is told the document is already signed.
+
+**Versions are numbered under a lock.** Uploaded bytes are written first under
+a random key, then the version rows are created inside a transaction that holds
+a row lock on the request (client uploads) or the matter (firm uploads). Two
+uploads arriving together get consecutive numbers and can never overwrite each
+other's file; bytes whose rows did not commit are removed.
+
+**An archived matter is read-only.** Every Admin mutation on a matter's
+contents checks `archivedAt` on the server before it writes, not only the
+buttons in the page. Restoring the matter lifts it.
+
+The actor recorded on every event is the signed-in Admin, taken from the
+session.
+
 ## Design
 
 The visual identity was designed first, as a clickable prototype, and the token
@@ -122,7 +153,9 @@ document.
 Viewed, Started and Signed, send a reminder, or revoke the link. The client
 reviews the PDF, draws or types a signature, and the signed PDF is produced with
 `pdf-lib`, carrying a certificate of completion with the signer, the timestamps
-and the SHA-256 of the source.
+and the SHA-256 of the source. The confirmation page and the follow-up email
+give the signer a download of their signed copy for 30 days; the spent link
+opens that one file and nothing else.
 
 The Admin can also sign a document in place, including a file a client
 uploaded, from the Sign button in the document list. It runs through the same
