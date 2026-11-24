@@ -62,11 +62,17 @@ export function NotificationsBell({
         aria-label={`Notifications, ${unreadCount} unread`}
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
+        className="size-9"
       >
-        <Icon name="bell" />
+        <Icon name="bell" className="size-[22px]" />
+        {/* Sits on the button's corner, clear of the bell, so neither hides
+            the other; a large count is capped so the badge keeps its size. */}
         {unreadCount > 0 ? (
-          <span className="absolute top-0.5 right-0.5 grid h-[17px] min-w-[17px] place-items-center rounded-full border-2 border-surface bg-danger px-1 text-[10.5px] font-semibold text-white">
-            {unreadCount}
+          <span
+            aria-hidden="true"
+            className="absolute -top-1 -right-1 grid h-[18px] min-w-[18px] place-items-center rounded-full bg-danger px-1 text-[10.5px] leading-none font-semibold text-white tabular ring-2 ring-surface"
+          >
+            {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         ) : null}
       </IconButton>
