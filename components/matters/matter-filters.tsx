@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Icon } from "@/components/icons";
 
@@ -16,7 +16,6 @@ export function MatterFilters() {
   const searchParams = useSearchParams();
 
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
-  const firstRender = useRef(true);
 
   function apply(changes: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
@@ -31,11 +30,12 @@ export function MatterFilters() {
     router.replace(next ? `${pathname}?${next}` : pathname, { scroll: false });
   }
 
+  // Runs only when the typed text differs from what the URL already says.
+  // Comparing values rather than skipping the first run matters: React runs
+  // effects twice in development, and a skipped-once guard then fired a
+  // search that dropped `page` from a URL opened directly at page 3.
   useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false;
-      return;
-    }
+    if (query === (searchParams.get("q") ?? "")) return;
     const timer = setTimeout(() => apply({ q: query || null }), 250);
     return () => clearTimeout(timer);
     // `apply` closes over the current params on purpose.

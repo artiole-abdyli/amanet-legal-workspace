@@ -13,7 +13,6 @@ import {
   SkeletonCard,
   SkeletonTiles,
 } from "@/components/ui/skeleton";
-import { Timeline } from "@/components/ui/timeline";
 import { cn } from "@/lib/cn";
 import {
   daysUntil,
@@ -420,20 +419,6 @@ async function DashboardContent({ searchParams }: { searchParams: Promise<Search
         </Card>
       </div>
 
-      <Card className="gap-3">
-        <CardHeader title="Recent activity" />
-        <Timeline
-          entries={data.recentActivity.map((event) => ({
-            id: event.id,
-            type: event.type,
-            summary: event.summary,
-            actorName: event.actorName,
-            createdAt: event.createdAt,
-            matter: event.matter,
-          }))}
-          showMatter
-        />
-      </Card>
     </>
   );
 }
@@ -450,7 +435,6 @@ function DashboardFallback() {
         <SkeletonCard rows={5} />
         <SkeletonCard rows={4} />
       </div>
-      <SkeletonCard rows={4} />
     </>
   );
 }

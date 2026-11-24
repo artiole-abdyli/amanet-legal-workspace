@@ -75,7 +75,7 @@ function Entry({
               {" · "}
               <Link
                 href={`/matters/${entry.matter.id}`}
-                className="underline-offset-2 hover:underline"
+                className="whitespace-nowrap underline-offset-2 hover:underline"
               >
                 {entry.matter.reference}
               </Link>
@@ -113,8 +113,17 @@ export function Timeline({
   );
 }
 
-/** The matter history, where grouping by day is what makes it readable. */
-export function GroupedTimeline({ entries }: { entries: TimelineEntry[] }) {
+/**
+ * History grouped by day, which is what makes a long run of events readable.
+ * Used for one matter, and with `showMatter` for the whole firm's log.
+ */
+export function GroupedTimeline({
+  entries,
+  showMatter,
+}: {
+  entries: TimelineEntry[];
+  showMatter?: boolean;
+}) {
   if (entries.length === 0) {
     return (
       <EmptyState
@@ -133,18 +142,31 @@ export function GroupedTimeline({ entries }: { entries: TimelineEntry[] }) {
     else groups.set(key, [entry]);
   }
 
-  const today = formatDate(new Date());
+  const now = new Date();
+  const today = formatDate(now);
+  const yesterday = formatDate(
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 12),
+  );
 
   return (
     <div className="flex flex-col gap-5">
       {[...groups].map(([day, items]) => (
         <div key={day}>
           <h3 className="mb-3 font-sans text-xs font-semibold tracking-[0.06em] text-muted uppercase">
-            {day === today ? "Today" : `${formatWeekday(items[0].createdAt)}, ${day}`}
+            {day === today
+              ? "Today"
+              : day === yesterday
+                ? "Yesterday"
+                : `${formatWeekday(items[0].createdAt)}, ${day}`}
           </h3>
           <ol className="flex flex-col">
             {items.map((entry) => (
-              <Entry key={entry.id} entry={entry} timeOnly />
+              <Entry
+                key={entry.id}
+                entry={entry}
+                showMatter={showMatter}
+                timeOnly
+              />
             ))}
           </ol>
         </div>

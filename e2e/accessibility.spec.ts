@@ -48,7 +48,7 @@ test.describe("accessibility", () => {
     test.slow();
     await signIn(page);
 
-    for (const path of ["/", "/matters", "/clients", "/emails", "/matters/new"]) {
+    for (const path of ["/", "/matters", "/clients", "/emails", "/activity", "/matters/new"]) {
       await page.goto(path);
       await page.waitForLoadState("networkidle");
       await scan(page, path);

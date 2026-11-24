@@ -166,6 +166,12 @@ page with Overview,
 Documents, Client requests, Signatures, Tasks & notes and Activity. Ctrl-K
 opens search over matters, clients and documents from anywhere.
 
+**Activity.** A firm-wide log of every event across all matters, grouped by
+day, with search (event, person, matter reference or title), filters for the
+kind of event and who did it, and pagination; an index on
+`ActivityEvent.createdAt` keeps it fast as the history grows. Each matter
+still has its own Activity tab, and the dashboard keeps to what needs action.
+
 **Documents.** Upload, preview and download, with versions kept rather than
 replaced. Uploading a file whose name already exists adds the next version.
 

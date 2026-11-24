@@ -163,7 +163,6 @@ export async function getDashboard(
     submittedRequests,
     liveSignatures,
     overdueTasks,
-    recentActivity,
   ] = await Promise.all([
     prisma.matter.count({
       where: { archivedAt: null, status: { not: "CLOSED" } },
@@ -210,11 +209,6 @@ export async function getDashboard(
       take: take("overdue"),
       include: { matter: { select: { id: true, reference: true } } },
     }),
-    prisma.activityEvent.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 6,
-      include: { matter: { select: { id: true, reference: true } } },
-    }),
   ]);
 
   return {
@@ -231,7 +225,69 @@ export async function getDashboard(
     submittedRequests,
     liveSignatures,
     overdueTasks,
-    recentActivity,
+  };
+}
+
+// --- Activity log -----------------------------------------------------------
+
+export const ACTIVITY_PER_PAGE = 25;
+
+export type ActivityFilters = {
+  query?: string;
+  type?: "MATTER" | "DOCUMENT" | "REQUEST" | "SIGNATURE" | "TASK" | "NOTE";
+  actor?: "ADMIN" | "CLIENT" | "SYSTEM";
+  page?: number;
+};
+
+/**
+ * The firm's whole history, newest first: the audit log behind the Activity
+ * page. Each matter keeps its own history in its Activity tab; this is every
+ * one of them together, searchable by what happened, who did it, and which
+ * matter it was on.
+ */
+export async function getActivity(filters: ActivityFilters = {}) {
+  await requireAdmin();
+  const { query, type, actor, page = 1 } = filters;
+
+  const where = {
+    ...(type ? { type } : {}),
+    ...(actor ? { actorType: actor } : {}),
+    ...(query
+      ? {
+          OR: [
+            { summary: { contains: query, mode: "insensitive" as const } },
+            { actorName: { contains: query, mode: "insensitive" as const } },
+            {
+              matter: {
+                OR: [
+                  { reference: { contains: query, mode: "insensitive" as const } },
+                  { title: { contains: query, mode: "insensitive" as const } },
+                ],
+              },
+            },
+          ],
+        }
+      : {}),
+  };
+
+  const total = await prisma.activityEvent.count({ where });
+  const pageCount = Math.max(1, Math.ceil(total / ACTIVITY_PER_PAGE));
+  const current = Math.min(pageCount, Math.max(1, Math.trunc(page) || 1));
+
+  const events = await prisma.activityEvent.findMany({
+    where,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    skip: (current - 1) * ACTIVITY_PER_PAGE,
+    take: ACTIVITY_PER_PAGE,
+    include: { matter: { select: { id: true, reference: true } } },
+  });
+
+  return {
+    events,
+    total,
+    page: current,
+    perPage: ACTIVITY_PER_PAGE,
+    pageCount,
   };
 }
 

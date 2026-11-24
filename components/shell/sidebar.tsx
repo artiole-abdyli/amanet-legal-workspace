@@ -14,6 +14,7 @@ const NAV: { href: string; label: string; icon: IconName }[] = [
   { href: "/matters", label: "Matters", icon: "folder" },
   { href: "/clients", label: "Clients", icon: "users" },
   { href: "/emails", label: "Email", icon: "mail" },
+  { href: "/activity", label: "Activity", icon: "clock" },
 ];
 
 type ShellProps = {
