@@ -8,9 +8,8 @@ import { assertMatterWritable, requireAdminActor } from "@/lib/admin";
 import { sendEmail } from "@/lib/email";
 import { documentTitle, firstName, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { LIMITS, isEmail } from "@/lib/validation";
 import { createSecureToken, hashSecureToken, signUrl } from "@/lib/secure-link";
-
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** The states in which a request is still out with the signer. */
 const LIVE: SignatureStatus[] = ["SENT", "VIEWED", "STARTED"];
@@ -55,8 +54,9 @@ export async function createSignatureRequest(
   }error=`;
 
   if (!documentId) redirect(`${back}document`);
-  if (!signerName) redirect(`${back}name`);
-  if (!EMAIL.test(signerEmail)) redirect(`${back}email`);
+  if (!signerName || signerName.length > LIMITS.name) redirect(`${back}name`);
+  if (!isEmail(signerEmail)) redirect(`${back}email`);
+  if (message.length > LIMITS.message) redirect(`${back}message`);
 
   const version = await prisma.documentVersion.findFirst({
     where: { documentId, document: { matterId, folder: "CONTRACTS" } },
@@ -114,13 +114,13 @@ export async function createSignatureRequest(
       `Hello ${firstName(signerName)},`,
       "",
       message ||
-        `${actor.actorName} at Harlow & Vance has asked you to sign a document for ${version.document.matter.title}.`,
+        `${actor.actorName} at Abdyli & Partners has asked you to sign a document for ${version.document.matter.title}.`,
       "",
       signUrl(token),
       "",
       `This link was made for you alone and stops working on ${formatDate(expiresAt)}.`,
       "",
-      "Harlow & Vance LLP",
+      "Abdyli & Partners",
     ].join("\n"),
   });
 
@@ -138,7 +138,9 @@ export async function createSignatureRequest(
  */
 export async function revokeSignature(id: string, formData: FormData) {
   const { actor } = await requireAdminActor();
-  const reason = String(formData.get("reason") ?? "").trim();
+  const reason = String(formData.get("reason") ?? "")
+    .trim()
+    .slice(0, LIMITS.reason);
   const signature = await loadSignature(id);
   await assertMatterWritable(signature.matter.id);
   const now = new Date();
@@ -232,7 +234,7 @@ export async function resendSigningLink(id: string) {
       "",
       `This link was made for you alone and stops working on ${formatDate(signature.expiresAt)}.`,
       "",
-      "Harlow & Vance LLP",
+      "Abdyli & Partners",
     ].join("\n"),
   });
 

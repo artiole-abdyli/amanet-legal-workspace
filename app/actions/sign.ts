@@ -303,7 +303,7 @@ export async function submitSignature(
       "",
       signedCopyUrl(token),
       "",
-      "Harlow & Vance LLP",
+      "Abdyli & Partners",
     ].join("\n"),
   });
 

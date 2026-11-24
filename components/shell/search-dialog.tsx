@@ -126,7 +126,7 @@ export function SearchDialog({ items }: { items: SearchItem[] }) {
           {results.length === 0 ? (
             <p className="px-3 py-8 text-center text-muted">
               Nothing matches “{query}”. Try a client name, a reference like
-              HV-2026-0142, or a file name.
+              AP-2026-0142, or a file name.
             </p>
           ) : (
             results.map((item, index) => {

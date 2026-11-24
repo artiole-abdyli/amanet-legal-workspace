@@ -76,7 +76,7 @@ function Tile({
     <Link
       href={href}
       scroll={false}
-      className="group flex items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 transition-colors hover:border-line-strong"
+      className="group flex flex-col items-start gap-2 rounded-card border border-line bg-surface px-3.5 py-3 transition-colors hover:border-line-strong sm:flex-row sm:items-center sm:gap-3 sm:px-4"
     >
       <span
         className={cn(
@@ -92,7 +92,9 @@ function Tile({
         <span className="block text-xl leading-tight font-semibold tabular">
           {value}
         </span>
-        <span className="block truncate text-[12.5px] text-muted">{label}</span>
+        <span className="block text-[12.5px] leading-snug text-muted sm:truncate">
+          {label}
+        </span>
       </span>
     </Link>
   );
@@ -111,12 +113,14 @@ type Row = {
 const TABS: {
   focus: AttentionFocus;
   label: string;
+  /** What fits a tab on a 320px phone. */
+  short: string;
   icon: IconName;
   tone: string;
 }[] = [
-  { focus: "review", label: "To review", icon: "upload", tone: "bg-info-bg text-info" },
-  { focus: "signing", label: "Signing in progress", icon: "pen", tone: "bg-warn-bg text-warn" },
-  { focus: "overdue", label: "Overdue tasks", icon: "alert", tone: "bg-danger-bg text-danger" },
+  { focus: "review", label: "To review", short: "Review", icon: "upload", tone: "bg-info-bg text-info" },
+  { focus: "signing", label: "Signing in progress", short: "Signing", icon: "pen", tone: "bg-warn-bg text-warn" },
+  { focus: "overdue", label: "Overdue tasks", short: "Overdue", icon: "alert", tone: "bg-danger-bg text-danger" },
 ];
 
 const EMPTY: Record<AttentionFocus, string> = {
@@ -163,7 +167,9 @@ function AttentionList({
                 <Icon name={tab.icon} className="size-3.5" />
               </span>
               <span className="min-w-0">
-                <span className="block truncate font-medium">{row.title}</span>
+                <span className="line-clamp-2 font-medium sm:line-clamp-1">
+                  {row.title}
+                </span>
                 <span className="block truncate text-[12.5px] text-muted">
                   {row.meta}
                 </span>
@@ -316,7 +322,7 @@ async function DashboardContent({ searchParams }: { searchParams: Promise<Search
           <div
             role="tablist"
             aria-label="Attention lists"
-            className="flex gap-1 overflow-x-auto rounded-lg bg-surface-2 p-1"
+            className="grid grid-cols-3 gap-1 rounded-lg bg-surface-2 p-1"
           >
             {TABS.map((tab) => {
               const active = tab.focus === focus;
@@ -328,13 +334,14 @@ async function DashboardContent({ searchParams }: { searchParams: Promise<Search
                   href={`/?focus=${tab.focus}`}
                   scroll={false}
                   className={cn(
-                    "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors",
+                    "flex min-w-0 items-center justify-center gap-1.5 rounded-md px-1.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors sm:gap-2 sm:px-3",
                     active
                       ? "bg-surface text-fg shadow-sm"
                       : "text-muted hover:text-fg",
                   )}
                 >
-                  {tab.label}
+                  <span className="sm:hidden">{tab.short}</span>
+                  <span className="hidden sm:inline">{tab.label}</span>
                   <span
                     className={cn(
                       "rounded-full px-1.5 text-[11.5px] tabular",
@@ -379,7 +386,7 @@ async function DashboardContent({ searchParams }: { searchParams: Promise<Search
                 <li key={keyDate.id}>
                   <Link
                     href={`/matters/${keyDate.matter.id}`}
-                    className="grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-2"
+                    className="grid grid-cols-[52px_minmax(0,1fr)] items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-2 sm:grid-cols-[52px_minmax(0,1fr)_auto]"
                   >
                     <span className="text-center leading-tight">
                       <span className="block text-[11px] font-medium text-muted uppercase">
@@ -394,8 +401,9 @@ async function DashboardContent({ searchParams }: { searchParams: Promise<Search
                       <span className="block truncate text-[12.5px] text-muted">
                         {keyDate.matter.title}
                       </span>
+                      <DueDate date={keyDate.date} className="sm:hidden" />
                     </span>
-                    <DueDate date={keyDate.date} />
+                    <DueDate date={keyDate.date} className="hidden sm:inline" />
                   </Link>
                 </li>
               ))}

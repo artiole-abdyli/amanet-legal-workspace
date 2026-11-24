@@ -6,6 +6,8 @@ import { Badge, signatureStatusTone } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, EmptyState } from "@/components/ui/card";
 import { VersionTag } from "@/components/ui/meta";
+import { Field, Input, ValidatedForm } from "@/components/ui/form";
+import { LIMITS } from "@/lib/validation";
 import { SignatureStepper } from "@/components/ui/stepper";
 import {
   daysUntil,
@@ -145,7 +147,7 @@ export async function SignaturesTab({ matterId }: { matterId: string }) {
                           <Icon name="ban" className="size-4" />
                           Revoke
                         </summary>
-                        <form
+                        <ValidatedForm
                           action={revokeSignature.bind(null, signature.id)}
                           className="mt-2 flex w-[min(360px,80vw)] flex-col gap-2 rounded-card border border-line bg-surface p-3 shadow-card"
                         >
@@ -154,18 +156,17 @@ export async function SignaturesTab({ matterId }: { matterId: string }) {
                             sign this document again. You can send a new request
                             afterwards.
                           </p>
-                          <label className="flex flex-col gap-1.5 text-[13px] font-medium">
-                            Reason, kept in the activity log
-                            <input
+                          <Field label="Reason, kept in the activity log">
+                            <Input
                               name="reason"
                               defaultValue="Document needs changes"
-                              className="rounded-lg border border-line bg-surface px-2.5 py-2 font-normal focus:border-muted focus:outline-none"
+                              data-max={LIMITS.reason}
                             />
-                          </label>
+                          </Field>
                           <Button type="submit" variant="danger" size="sm">
                             Revoke link
                           </Button>
-                        </form>
+                        </ValidatedForm>
                       </details>
                     </>
                   ) : null}

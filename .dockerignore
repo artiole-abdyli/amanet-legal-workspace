@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.storage
+.env
+.env.*
+!.env.example
+test-results
+playwright-report
+blob-report
+coverage
+*.tsbuildinfo
+app/generated
+pw.local.config.ts

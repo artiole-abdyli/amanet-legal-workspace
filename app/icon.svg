@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Harlow and Vance">
-  <rect width="32" height="32" rx="7" fill="#1D4E7C"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Abdyli &amp; Partners">
+  <rect width="32" height="32" rx="7" fill="#1F5FCC"/>
   <text x="16" y="22.5"
         font-family="Georgia, 'Times New Roman', serif"
         font-size="16" font-weight="600" letter-spacing="-0.5"
-        text-anchor="middle" fill="#FFFFFF">HV</text>
+        text-anchor="middle" fill="#FFFFFF">AP</text>
 </svg>

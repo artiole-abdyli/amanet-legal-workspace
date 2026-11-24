@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 
 export const ADMIN = {
-  email: "elena.vance@harlowvance.example",
+  email: "artiole.abdyli@abdylipartners.example",
   password: "workspace-demo",
 };
 

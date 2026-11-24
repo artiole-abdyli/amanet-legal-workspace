@@ -91,7 +91,7 @@ do të ishte mënyrë për të zbuluar kush ka llogari.
 - [ ] Hyr me:
 
 ```
-elena.vance@harlowvance.example
+artiole.abdyli@abdylipartners.example
 workspace-demo
 ```
 

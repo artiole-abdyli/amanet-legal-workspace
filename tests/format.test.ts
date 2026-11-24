@@ -75,7 +75,7 @@ describe("small text helpers", () => {
   });
 
   it("takes initials from at most two names", () => {
-    expect(initials("Elena Vance")).toBe("EV");
+    expect(initials("Artiole Abdyli")).toBe("AA");
     expect(initials("Northwind Logistics Ltd")).toBe("NL");
     expect(initials("Ana")).toBe("A");
   });

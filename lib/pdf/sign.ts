@@ -163,7 +163,7 @@ export async function stampSignature(
 
   y -= 10;
   for (const line of wrap(
-    "This certificate records how the document above was signed electronically. It is produced by the Harlow & Vance matter workspace and is not a qualified electronic signature under eIDAS.",
+    "This certificate records how the document above was signed electronically. It is produced by the Abdyli & Partners matter workspace and is not a qualified electronic signature under eIDAS.",
     sans,
     8.5,
     inner,

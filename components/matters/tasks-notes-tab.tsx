@@ -4,6 +4,8 @@ import { TaskCheckbox } from "@/components/matters/task-checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { DueDate } from "@/components/ui/meta";
+import { Field, Input, Textarea, ValidatedForm } from "@/components/ui/form";
+import { LIMITS } from "@/lib/validation";
 import { formatDateTime } from "@/lib/format";
 import { getMatter, getMatterTasksAndNotes } from "@/lib/queries";
 
@@ -22,9 +24,6 @@ export async function TasksNotesTab({ matterId }: { matterId: string }) {
 
   const open = tasks.filter((task) => !task.completedAt);
   const done = tasks.filter((task) => task.completedAt);
-  const inputClass =
-    "min-w-0 rounded-lg border border-line bg-surface px-2.5 py-2 focus:border-muted focus:outline-none";
-
   return (
     <div className="grid items-start gap-5 lg:grid-cols-[1.45fr_minmax(0,1fr)]">
       <Card>
@@ -34,33 +33,27 @@ export async function TasksNotesTab({ matterId }: { matterId: string }) {
         />
 
         {archived ? null : (
-          <form
+          <ValidatedForm
             action={addTask.bind(null, matterId)}
-            className="flex flex-wrap gap-2"
+            className="flex flex-wrap items-start gap-2"
           >
-            <label className="min-w-0 flex-1 basis-[180px]">
-              <span className="sr-only">New task</span>
-              <input
+            <Field label="New task" hideLabel className="min-w-0 flex-1 basis-[180px]">
+              <Input
                 name="title"
                 required
+                data-max={LIMITS.title}
+                data-msg-required="Write the task before adding it."
                 placeholder="Add a task"
-                className={`${inputClass} w-full`}
               />
-            </label>
-            <label>
-              <span className="sr-only">Due date</span>
-              <input
-                type="date"
-                name="dueDate"
-                defaultValue={defaultDueDate()}
-                className={inputClass}
-              />
-            </label>
+            </Field>
+            <Field label="Due date" hideLabel>
+              <Input type="date" name="dueDate" defaultValue={defaultDueDate()} />
+            </Field>
             <Button type="submit">
               <Icon name="plus" />
               Add
             </Button>
-          </form>
+          </ValidatedForm>
         )}
 
         {tasks.length === 0 ? (
@@ -99,24 +92,25 @@ export async function TasksNotesTab({ matterId }: { matterId: string }) {
         />
 
         {archived ? null : (
-          <form
+          <ValidatedForm
             action={addNote.bind(null, matterId)}
             className="flex flex-col gap-2"
           >
-            <label>
-              <span className="sr-only">New note</span>
-              <textarea
+            <Field label="New note" hideLabel>
+              <Textarea
                 name="body"
                 required
                 rows={3}
+                data-max={LIMITS.note}
+                data-msg-required="Write the note before adding it."
                 placeholder="Write a note for the team"
-                className={`${inputClass} w-full resize-y`}
+                className="resize-y"
               />
-            </label>
+            </Field>
             <div>
               <Button type="submit">Add note</Button>
             </div>
-          </form>
+          </ValidatedForm>
         )}
 
         {notes.length === 0 ? (

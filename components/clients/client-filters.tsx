@@ -68,6 +68,18 @@ export function ClientFilters() {
           <option value="COMPANY">Companies</option>
         </select>
       </label>
+
+      <label>
+        <span className="sr-only">Sort</span>
+        <select
+          className="rounded-lg border border-line bg-surface px-2.5 py-2 text-fg"
+          defaultValue={searchParams.get("sort") ?? ""}
+          onChange={(event) => apply({ sort: event.target.value || null })}
+        >
+          <option value="">Sort: newest first</option>
+          <option value="name">Sort: name A–Z</option>
+        </select>
+      </label>
     </div>
   );
 }

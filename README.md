@@ -1,10 +1,10 @@
-# Harlow & Vance — matter workspace & document signing
+# Abdyli & Partners — matter workspace & document signing
 
 A matter-management workspace for a law firm. The firm's Admin manages matters,
 clients and documents; external clients receive secure email links to upload
 files and sign documents without ever creating an account.
 
-Harlow & Vance LLP is fictional, and so is every matter, client and document in
+Abdyli & Partners is fictional, and so is every matter, client and document in
 the seed data.
 
 ## Running it
@@ -29,7 +29,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 | | |
 | --- | --- |
 | URL | http://localhost:3000/login |
-| Email | `elena.vance@harlowvance.example` |
+| Email | `artiole.abdyli@abdylipartners.example` |
 | Password | `workspace-demo` |
 
 `npm run setup` also prints the demo Admin login and a set of ready-made client links
@@ -50,6 +50,30 @@ A step-by-step walkthrough of everything worth checking, in Albanian, is in
 | `npm run db:studio` | Browse the data in Prisma Studio |
 | `npm test` | Run the unit tests (no database needed) |
 | `npm run test:e2e` | Run the end-to-end tests (needs the app and a fresh seed) |
+
+## Deploying
+
+The repository ships a `Dockerfile`, so any host that builds from one works.
+The app needs three things: a Postgres database, a persistent volume for the
+PDFs, and the environment variables below.
+
+On start the container applies pending migrations
+(`prisma migrate deploy`), seeds the demo data if the database is empty, and
+serves on `$PORT`. Redeploys keep existing data. Set `DEMO_RESET=1` to wipe
+and re-seed on every start instead.
+
+| Variable | Value |
+| --- | --- |
+| `DATABASE_URL` | The Postgres connection string |
+| `APP_URL` | The public URL, e.g. `https://amanet-demo.up.railway.app`; secure links are built from it |
+| `AUTH_SECRET` | 32 random bytes, hex |
+| `SECURE_LINK_PEPPER` | 32 random bytes, hex; changing it invalidates every link already sent |
+| `STORAGE_DIR` | `/data/storage`, on a mounted volume (the image's default) |
+| `EMAIL_TRANSPORT` | `outbox` for a demo, or `resend` with `RESEND_API_KEY` and `EMAIL_FROM` |
+
+On Railway: create a project from the GitHub repository, add a PostgreSQL
+service, attach a volume to the app at `/data`, set the variables (with
+`DATABASE_URL=${{Postgres.DATABASE_URL}}`), and generate a public domain.
 
 ## Stack
 

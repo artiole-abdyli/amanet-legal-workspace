@@ -5,7 +5,7 @@ import { Icon } from "@/components/icons";
 import { cn } from "@/lib/cn";
 
 const CONTROL =
-  "w-full min-w-0 rounded-lg border border-line bg-surface px-2.5 py-2 text-fg focus:border-muted focus:outline-none";
+  "w-full min-w-0 rounded-lg border border-line bg-surface px-2.5 py-2 text-fg focus:border-muted focus:outline-none aria-[invalid=true]:border-danger aria-[invalid=true]:focus:border-danger";
 
 export function FormPage({
   backHref,
@@ -42,25 +42,8 @@ export function FormPage({
   );
 }
 
-export function Field({
-  label,
-  hint,
-  children,
-  className,
-}: {
-  label: string;
-  hint?: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <label className={cn("flex flex-col gap-1.5", className)}>
-      <span className="text-[13px] font-medium">{label}</span>
-      {children}
-      {hint ? <small className="text-[12.5px] text-muted">{hint}</small> : null}
-    </label>
-  );
-}
+export { Field } from "@/components/ui/field";
+export { ValidatedForm } from "@/components/ui/validated-form";
 
 export function FieldRow({ children }: { children: ReactNode }) {
   return <div className="grid gap-3 sm:grid-cols-2">{children}</div>;

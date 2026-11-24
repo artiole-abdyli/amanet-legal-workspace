@@ -12,7 +12,7 @@ import { documentKey, putObject } from "../lib/storage";
 import { buildSamplePdf } from "./sample-pdf";
 
 /**
- * Fictional data for a single firm, Harlow & Vance LLP.
+ * Fictional data for a single firm, Abdyli & Partners.
  *
  * Dates are relative to the moment the seed runs, so the workspace always opens
  * with deadlines approaching, one task overdue, uploads waiting for review and
@@ -28,7 +28,7 @@ function at(days: number, hour = 10, minute = 0): Date {
   return date;
 }
 
-const DEMO_EMAIL = "elena.vance@harlowvance.example";
+const DEMO_EMAIL = "artiole.abdyli@abdylipartners.example";
 const DEMO_PASSWORD = "workspace-demo";
 
 type ActorType = "ADMIN" | "CLIENT" | "SYSTEM";
@@ -137,8 +137,8 @@ async function main() {
 
   const firm = await prisma.firm.create({
     data: {
-      name: "Harlow & Vance LLP",
-      email: "hello@harlowvance.example",
+      name: "Abdyli & Partners",
+      email: "hello@abdylipartners.example",
       phone: "+44 20 7946 0999",
     },
   });
@@ -146,7 +146,7 @@ async function main() {
   await prisma.user.create({
     data: {
       firmId: firm.id,
-      name: "Elena Vance",
+      name: "Artiole Abdyli",
       email: DEMO_EMAIL,
       passwordHash: await hashPassword(DEMO_PASSWORD),
       role: "ADMIN",
@@ -194,14 +194,14 @@ async function main() {
   const demoLinks: string[] = [];
 
   // -------------------------------------------------------------------------
-  // HV-2026-0142 — the matter the demo walks through
+  // AP-2026-0142 — the matter the demo walks through
   // -------------------------------------------------------------------------
 
   const elmRow = await prisma.matter.create({
     data: {
       firmId: firm.id,
       clientId: ana.id,
-      reference: "HV-2026-0142",
+      reference: "AP-2026-0142",
       title: "Residential purchase, 14 Elm Row",
       practiceArea: "Property",
       status: "ACTIVE",
@@ -231,12 +231,12 @@ async function main() {
         create: [
           {
             body: "Seller wants to exchange before the 13th. Ana is flexible on completion but needs two weeks for removals.",
-            authorName: "Elena Vance",
+            authorName: "Artiole Abdyli",
             createdAt: at(-6, 17, 2),
           },
           {
             body: "Lender confirmed the valuation passed. Mortgage offer expected this week.",
-            authorName: "Elena Vance",
+            authorName: "Artiole Abdyli",
             createdAt: at(-4, 10, 30),
           },
         ],
@@ -253,12 +253,12 @@ async function main() {
     versions: [
       {
         uploadedByType: "ADMIN",
-        uploadedByName: "Elena Vance",
+        uploadedByName: "Artiole Abdyli",
         createdAt: at(-14, 15, 10),
       },
       {
         uploadedByType: "ADMIN",
-        uploadedByName: "Elena Vance",
+        uploadedByName: "Artiole Abdyli",
         createdAt: at(-6, 16, 45),
       },
     ],
@@ -273,7 +273,7 @@ async function main() {
     versions: [
       {
         uploadedByType: "ADMIN",
-        uploadedByName: "Elena Vance",
+        uploadedByName: "Artiole Abdyli",
         createdAt: at(-29, 11, 2),
       },
     ],
@@ -288,7 +288,7 @@ async function main() {
     versions: [
       {
         uploadedByType: "ADMIN",
-        uploadedByName: "Elena Vance",
+        uploadedByName: "Artiole Abdyli",
         createdAt: at(-47, 10),
       },
     ],
@@ -474,14 +474,14 @@ async function main() {
   demoLinks.push(`Dead link (expired and revoked)             ${signUrl(deadToken)}`);
 
   for (const entry of [
-    ["MATTER", "Matter opened by Elena Vance", "ADMIN", "Elena Vance", at(-47, 9, 30)],
+    ["MATTER", "Matter opened by Artiole Abdyli", "ADMIN", "Artiole Abdyli", at(-47, 9, 30)],
     ["SIGNATURE", "Ana Berisha signed Client care letter", "CLIENT", "Ana Berisha", careSignedAt],
-    ["DOCUMENT", "Purchase contract v1 uploaded", "ADMIN", "Elena Vance", at(-14, 15, 10)],
-    ["REQUEST", "Requested 3 documents from Ana Berisha", "ADMIN", "Elena Vance", at(-10)],
+    ["DOCUMENT", "Purchase contract v1 uploaded", "ADMIN", "Artiole Abdyli", at(-14, 15, 10)],
+    ["REQUEST", "Requested 3 documents from Ana Berisha", "ADMIN", "Artiole Abdyli", at(-10)],
     ["REQUEST", "Ana Berisha uploaded ID card scan.pdf", "CLIENT", "Ana Berisha", at(-8, 19, 2)],
-    ["REQUEST", "Asked Ana Berisha for a clearer copy of her ID", "ADMIN", "Elena Vance", at(-7, 9, 15)],
-    ["DOCUMENT", "Purchase contract v2 uploaded, v1 kept in history", "ADMIN", "Elena Vance", at(-6, 16, 45)],
-    ["SIGNATURE", "Signature request sent to Ana Berisha for Purchase contract v2", "ADMIN", "Elena Vance", at(-2, 9, 12)],
+    ["REQUEST", "Asked Ana Berisha for a clearer copy of her ID", "ADMIN", "Artiole Abdyli", at(-7, 9, 15)],
+    ["DOCUMENT", "Purchase contract v2 uploaded, v1 kept in history", "ADMIN", "Artiole Abdyli", at(-6, 16, 45)],
+    ["SIGNATURE", "Signature request sent to Ana Berisha for Purchase contract v2", "ADMIN", "Artiole Abdyli", at(-2, 9, 12)],
     ["SIGNATURE", "Ana Berisha opened Purchase contract v2", "CLIENT", "Ana Berisha", at(-1, 18, 40)],
     ["REQUEST", "Ana Berisha uploaded Bank statement — October.pdf", "CLIENT", "Ana Berisha", at(-1, 20, 5)],
   ] as const) {
@@ -489,14 +489,14 @@ async function main() {
   }
 
   // -------------------------------------------------------------------------
-  // HV-2026-0137 — a signature already in progress
+  // AP-2026-0137 — a signature already in progress
   // -------------------------------------------------------------------------
 
   const supplier = await prisma.matter.create({
     data: {
       firmId: firm.id,
       clientId: northwind.id,
-      reference: "HV-2026-0137",
+      reference: "AP-2026-0137",
       title: "Supplier agreement renewal",
       practiceArea: "Commercial",
       status: "ACTIVE",
@@ -519,7 +519,7 @@ async function main() {
         create: [
           {
             body: "Northwind will not accept a liability cap below 12 months of fees.",
-            authorName: "Elena Vance",
+            authorName: "Artiole Abdyli",
             createdAt: at(-8, 15, 40),
           },
         ],
@@ -534,9 +534,9 @@ async function main() {
     name: "Supplier agreement 2027.pdf",
     title: "Supplier agreement 2027",
     versions: [
-      { uploadedByType: "ADMIN", uploadedByName: "Elena Vance", createdAt: at(-21, 10) },
-      { uploadedByType: "ADMIN", uploadedByName: "Elena Vance", createdAt: at(-12, 9, 30) },
-      { uploadedByType: "ADMIN", uploadedByName: "Elena Vance", createdAt: at(-4, 17, 20) },
+      { uploadedByType: "ADMIN", uploadedByName: "Artiole Abdyli", createdAt: at(-21, 10) },
+      { uploadedByType: "ADMIN", uploadedByName: "Artiole Abdyli", createdAt: at(-12, 9, 30) },
+      { uploadedByType: "ADMIN", uploadedByName: "Artiole Abdyli", createdAt: at(-4, 17, 20) },
     ],
   });
 
@@ -547,7 +547,7 @@ async function main() {
     name: "Pricing schedule.pdf",
     title: "Pricing schedule",
     versions: [
-      { uploadedByType: "ADMIN", uploadedByName: "Elena Vance", createdAt: at(-12, 9, 32) },
+      { uploadedByType: "ADMIN", uploadedByName: "Artiole Abdyli", createdAt: at(-12, 9, 32) },
     ],
   });
 
@@ -587,9 +587,9 @@ async function main() {
   });
 
   for (const entry of [
-    ["MATTER", "Matter opened by Elena Vance", "ADMIN", "Elena Vance", at(-66)],
-    ["DOCUMENT", "Supplier agreement 2027 v3 uploaded", "ADMIN", "Elena Vance", at(-4, 17, 20)],
-    ["SIGNATURE", "Signature request sent to Tomas Reed for Supplier agreement 2027 v3", "ADMIN", "Elena Vance", at(-3, 11)],
+    ["MATTER", "Matter opened by Artiole Abdyli", "ADMIN", "Artiole Abdyli", at(-66)],
+    ["DOCUMENT", "Supplier agreement 2027 v3 uploaded", "ADMIN", "Artiole Abdyli", at(-4, 17, 20)],
+    ["SIGNATURE", "Signature request sent to Tomas Reed for Supplier agreement 2027 v3", "ADMIN", "Artiole Abdyli", at(-3, 11)],
     ["SIGNATURE", "Tomas Reed opened Supplier agreement 2027 v3", "CLIENT", "Tomas Reed", at(-3, 14, 22)],
     ["SIGNATURE", "Tomas Reed started signing", "CLIENT", "Tomas Reed", at(-3, 14, 25)],
   ] as const) {
@@ -597,14 +597,14 @@ async function main() {
   }
 
   // -------------------------------------------------------------------------
-  // HV-2026-0129 — on hold, with a revoked signing link
+  // AP-2026-0129 — on hold, with a revoked signing link
   // -------------------------------------------------------------------------
 
   const dismissal = await prisma.matter.create({
     data: {
       firmId: firm.id,
       clientId: marco.id,
-      reference: "HV-2026-0129",
+      reference: "AP-2026-0129",
       title: "Unfair dismissal claim",
       practiceArea: "Employment",
       status: "ON_HOLD",
@@ -627,7 +627,7 @@ async function main() {
         create: [
           {
             body: "On hold while settlement talks continue. The filing deadline still applies: do not miss it.",
-            authorName: "Elena Vance",
+            authorName: "Artiole Abdyli",
             createdAt: at(-13, 9, 35),
           },
         ],
@@ -642,7 +642,7 @@ async function main() {
     name: "Settlement agreement.pdf",
     title: "Settlement agreement",
     versions: [
-      { uploadedByType: "ADMIN", uploadedByName: "Elena Vance", createdAt: at(-18, 14) },
+      { uploadedByType: "ADMIN", uploadedByName: "Artiole Abdyli", createdAt: at(-18, 14) },
     ],
   });
 
@@ -688,24 +688,24 @@ async function main() {
   });
 
   for (const entry of [
-    ["MATTER", "Matter opened by Elena Vance", "ADMIN", "Elena Vance", at(-81)],
+    ["MATTER", "Matter opened by Artiole Abdyli", "ADMIN", "Artiole Abdyli", at(-81)],
     ["REQUEST", "Marco Lindqvist uploaded Employment contract and payslips.pdf", "CLIENT", "Marco Lindqvist", at(-77, 8, 41)],
-    ["SIGNATURE", "Signature request sent to Marco Lindqvist for Settlement agreement", "ADMIN", "Elena Vance", at(-17, 10)],
-    ["SIGNATURE", "Signing link revoked: settlement terms changed", "ADMIN", "Elena Vance", at(-14, 9, 30)],
-    ["MATTER", "Status changed to On hold", "ADMIN", "Elena Vance", at(-13, 9, 30)],
+    ["SIGNATURE", "Signature request sent to Marco Lindqvist for Settlement agreement", "ADMIN", "Artiole Abdyli", at(-17, 10)],
+    ["SIGNATURE", "Signing link revoked: settlement terms changed", "ADMIN", "Artiole Abdyli", at(-14, 9, 30)],
+    ["MATTER", "Status changed to On hold", "ADMIN", "Artiole Abdyli", at(-13, 9, 30)],
   ] as const) {
     await event(dismissal.id, entry[0], entry[1], entry[2], entry[3], entry[4]);
   }
 
   // -------------------------------------------------------------------------
-  // HV-2026-0118 — quiet matter with one completed signature
+  // AP-2026-0118 — quiet matter with one completed signature
   // -------------------------------------------------------------------------
 
   const will = await prisma.matter.create({
     data: {
       firmId: firm.id,
       clientId: priya.id,
-      reference: "HV-2026-0118",
+      reference: "AP-2026-0118",
       title: "Will and estate plan",
       practiceArea: "Private client",
       status: "ACTIVE",
@@ -728,7 +728,7 @@ async function main() {
         create: [
           {
             body: "Priya wants her sister named as second executor.",
-            authorName: "Elena Vance",
+            authorName: "Artiole Abdyli",
             createdAt: at(-5, 12, 20),
           },
         ],
@@ -743,7 +743,7 @@ async function main() {
     name: "Will — draft for review.pdf",
     title: "Will — draft for review",
     versions: [
-      { uploadedByType: "ADMIN", uploadedByName: "Elena Vance", createdAt: at(-5, 12, 15) },
+      { uploadedByType: "ADMIN", uploadedByName: "Artiole Abdyli", createdAt: at(-5, 12, 15) },
     ],
   });
 
@@ -754,7 +754,7 @@ async function main() {
     name: "Client care letter.pdf",
     title: "Client care letter",
     versions: [
-      { uploadedByType: "ADMIN", uploadedByName: "Elena Vance", createdAt: at(-120, 15) },
+      { uploadedByType: "ADMIN", uploadedByName: "Artiole Abdyli", createdAt: at(-120, 15) },
     ],
   });
 
@@ -802,22 +802,22 @@ async function main() {
   });
 
   for (const entry of [
-    ["MATTER", "Matter opened by Elena Vance", "ADMIN", "Elena Vance", at(-120)],
+    ["MATTER", "Matter opened by Artiole Abdyli", "ADMIN", "Artiole Abdyli", at(-120)],
     ["SIGNATURE", "Priya Raman signed Client care letter", "CLIENT", "Priya Raman", priyaSignedAt],
-    ["DOCUMENT", "Will — draft for review uploaded", "ADMIN", "Elena Vance", at(-5, 12, 15)],
+    ["DOCUMENT", "Will — draft for review uploaded", "ADMIN", "Artiole Abdyli", at(-5, 12, 15)],
   ] as const) {
     await event(will.id, entry[0], entry[1], entry[2], entry[3], entry[4]);
   }
 
   // -------------------------------------------------------------------------
-  // HV-2026-0096 — archived, so the archive filter has something to show
+  // AP-2026-0096 — archived, so the archive filter has something to show
   // -------------------------------------------------------------------------
 
   const warehouse = await prisma.matter.create({
     data: {
       firmId: firm.id,
       clientId: northwind.id,
-      reference: "HV-2026-0096",
+      reference: "AP-2026-0096",
       title: "Warehouse lease termination",
       practiceArea: "Property",
       status: "CLOSED",
@@ -836,11 +836,11 @@ async function main() {
     name: "Lease termination notice.pdf",
     title: "Lease termination notice",
     versions: [
-      { uploadedByType: "ADMIN", uploadedByName: "Elena Vance", createdAt: at(-170, 11) },
+      { uploadedByType: "ADMIN", uploadedByName: "Artiole Abdyli", createdAt: at(-170, 11) },
     ],
   });
 
-  await event(warehouse.id, "MATTER", "Matter archived", "ADMIN", "Elena Vance", at(-140));
+  await event(warehouse.id, "MATTER", "Matter archived", "ADMIN", "Artiole Abdyli", at(-140));
 
   // -------------------------------------------------------------------------
   // A fuller caseload
@@ -906,7 +906,7 @@ async function main() {
 
   let sequence = 143;
   for (const [title, area, clientId, status, priority, inDays, keyDate] of roster) {
-    const reference = `HV-2026-0${sequence++}`;
+    const reference = `AP-2026-0${sequence++}`;
     const matter = await prisma.matter.create({
       data: {
         firmId: firm.id,
@@ -931,7 +931,7 @@ async function main() {
             type: "MATTER",
             summary: "Matter opened",
             actorType: "ADMIN",
-            actorName: "Elena Vance",
+            actorName: "Artiole Abdyli",
             createdAt: at(-90 + (sequence % 40)),
           },
         },
@@ -947,7 +947,7 @@ async function main() {
       versions: [
         {
           uploadedByType: "ADMIN",
-          uploadedByName: "Elena Vance",
+          uploadedByName: "Artiole Abdyli",
           createdAt: at(-60 + (sequence % 30)),
         },
       ],
@@ -998,7 +998,7 @@ async function main() {
         firmId: firm.id,
         to: ana.email,
         subject: "Please sign: Purchase contract — 14 Elm Row",
-        body: "Hello Ana, Elena Vance at Harlow & Vance has asked you to sign a document. The link in this message works only for you and expires automatically.",
+        body: "Hello Ana, Artiole Abdyli at Abdyli & Partners has asked you to sign a document. The link in this message works only for you and expires automatically.",
         status: "SENT",
         sentAt: at(-2, 9, 12),
         createdAt: at(-2, 9, 12),
@@ -1025,7 +1025,7 @@ async function main() {
   });
 
   console.log(`
-Seeded Harlow & Vance LLP.
+Seeded Abdyli & Partners.
 
   Admin login
     ${DEMO_EMAIL}

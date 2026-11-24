@@ -458,6 +458,8 @@ export async function getMatterActivity(matterId: string) {
 export type ClientFilters = {
   query?: string;
   type?: "INDIVIDUAL" | "COMPANY";
+  /** Newest first by default, so a client just added is at the top. */
+  sort?: "newest" | "name";
   page?: number;
 };
 
@@ -465,7 +467,7 @@ export const CLIENTS_PER_PAGE = 5;
 
 export async function getClients(filters: ClientFilters = {}) {
   await requireAdmin();
-  const { query, type, page = 1 } = filters;
+  const { query, type, sort = "newest", page = 1 } = filters;
 
   const where = {
     ...(type ? { type } : {}),
@@ -488,7 +490,12 @@ export async function getClients(filters: ClientFilters = {}) {
 
   const clients = await prisma.client.findMany({
     where,
-    orderBy: { name: "asc" },
+    // The name breaks ties, so clients created in the same instant (the
+    // seed) still come back in a stable order across pages.
+    orderBy:
+      sort === "name"
+        ? [{ name: "asc" }]
+        : [{ createdAt: "desc" }, { name: "asc" }],
     skip: (current - 1) * CLIENTS_PER_PAGE,
     take: CLIENTS_PER_PAGE,
     include: {
@@ -538,10 +545,14 @@ export async function getClient(id: string) {
 /** Just enough of each client to fill the picker on the new-matter form. */
 export async function getClientOptions() {
   await requireAdmin();
-  return prisma.client.findMany({
-    orderBy: { name: "asc" },
+  const clients = await prisma.client.findMany({
     select: { id: true, name: true },
   });
+  // Sorted here rather than by the database, whose collation puts every
+  // lowercase name after every capitalised one ("amanet" after "Tobias").
+  return clients.sort((a, b) =>
+    a.name.localeCompare(b.name, "en", { sensitivity: "base" }),
+  );
 }
 
 // --- Email ------------------------------------------------------------------

@@ -44,7 +44,17 @@ export async function OverviewTab({ matterId }: { matterId: string }) {
     <div className="grid items-start gap-5 lg:grid-cols-[1.45fr_minmax(0,1fr)]">
       <div className="flex min-w-0 flex-col gap-5">
         <Card>
-          <SectionTitle>Key dates</SectionTitle>
+          <div className="flex items-center justify-between gap-3">
+            <SectionTitle>Key dates</SectionTitle>
+            {matter.archivedAt ? null : (
+              <Link
+                href={`/matters/${matter.id}/edit`}
+                className="text-[13px] font-medium text-accent hover:underline"
+              >
+                Add or change
+              </Link>
+            )}
+          </div>
           {matter.keyDates.length === 0 ? (
             <p className="text-muted">No key dates recorded for this matter.</p>
           ) : (

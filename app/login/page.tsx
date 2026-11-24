@@ -17,7 +17,7 @@ export default function LoginPage() {
           <FirmMark className="size-12 rounded-xl text-base" />
           <div>
             <h1 className="font-serif text-[24px] leading-tight font-semibold tracking-[-0.015em]">
-              Harlow &amp; Vance
+              Abdyli &amp; Partners
             </h1>
             <p className="mt-1 text-muted">
               Sign in to the firm&rsquo;s matter workspace.

@@ -12,7 +12,9 @@ import {
   FormCard,
   Input,
   Select,
+  ValidatedForm,
 } from "@/components/ui/form";
+import { LIMITS, todayInput } from "@/lib/validation";
 
 const PRACTICE_AREAS = [
   "Property",
@@ -37,26 +39,36 @@ export function MatterForm({
     createMatter,
     null,
   );
-  const [clientId, setClientId] = useState(clients[0]?.id ?? "__new");
+  // Nothing is pre-selected: a matter filed under the wrong client is a
+  // confidentiality problem, so the Admin has to choose one deliberately.
+  // With no clients yet, the form opens on "add a new client".
+  const [clientId, setClientId] = useState(clients.length ? "" : "__new");
 
   return (
-    <form action={formAction}>
+    <ValidatedForm action={formAction} serverErrors={state?.fields}>
       <FormCard>
-        <Field label="Matter title">
+        <Field label="Matter title" required>
           <Input
             name="title"
             required
+            data-max={LIMITS.title}
+            data-msg-required="Give the matter a title."
             placeholder="e.g. Commercial lease, Unit 4"
           />
         </Field>
 
         <FieldRow>
-          <Field label="Client">
+          <Field label="Client" required>
             <Select
               name="clientId"
+              required
+              data-msg-required="Choose a client for this matter."
               value={clientId}
               onChange={(event) => setClientId(event.target.value)}
             >
+              <option value="" disabled>
+                Choose a client…
+              </option>
               {clients.map((client) => (
                 <option key={client.id} value={client.id}>
                   {client.name}
@@ -77,9 +89,12 @@ export function MatterForm({
         {clientId === "__new" ? (
           <div className="flex flex-col gap-3 rounded-lg border border-line bg-bg p-3.5">
             <FieldRow>
-              <Field label="New client name">
+              <Field label="New client name" required>
                 <Input
                   name="newClientName"
+                  required
+                  data-max={LIMITS.name}
+                  data-msg-required="Enter the new client's name."
                   placeholder="Person or company name"
                 />
               </Field>
@@ -93,10 +108,13 @@ export function MatterForm({
             <Field
               label="Email"
               hint="Upload and signing links are sent to this address."
+              required
             >
               <Input
                 type="email"
                 name="newClientEmail"
+                required
+                data-msg-required="Enter the new client's email address."
                 placeholder="name@example.com"
               />
             </Field>
@@ -112,7 +130,16 @@ export function MatterForm({
             </Select>
           </Field>
           <Field label="Deadline" hint="Recorded as the first key date.">
-            <Input type="date" name="deadline" defaultValue={inSevenWeeks()} />
+            <Input
+              type="date"
+              name="deadline"
+              defaultValue={inSevenWeeks()}
+              min={todayInput()}
+              data-msg-min="A new matter's deadline can't be in the past."
+              // The browser and the server can disagree about "today" around
+              // midnight; the attribute is only a hint, the server decides.
+              suppressHydrationWarning
+            />
           </Field>
         </FieldRow>
 
@@ -131,6 +158,6 @@ export function MatterForm({
           </Button>
         </FormActions>
       </FormCard>
-    </form>
+    </ValidatedForm>
   );
 }

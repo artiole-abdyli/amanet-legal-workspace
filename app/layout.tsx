@@ -34,11 +34,11 @@ const signature = Caveat({
 
 export const metadata: Metadata = {
   title: {
-    default: "Harlow & Vance",
-    template: "%s · Harlow & Vance",
+    default: "Abdyli & Partners",
+    template: "%s · Abdyli & Partners",
   },
   description:
-    "Matter workspace and document signing for Harlow & Vance LLP.",
+    "Matter workspace and document signing for Abdyli & Partners.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

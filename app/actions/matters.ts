@@ -13,6 +13,7 @@ import type { MatterStatus, Priority } from "@/app/generated/prisma/client";
 import { matterStatusLabel } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { getFirm } from "@/lib/queries";
+import { LIMITS, createChecker, type FieldErrors } from "@/lib/validation";
 
 /**
  * Mutations for a matter.
@@ -21,18 +22,27 @@ import { getFirm } from "@/lib/queries";
  * the history and the data cannot disagree.
  */
 
-export type MatterFormState = { error: string } | null;
+export type MatterFormState = { error?: string; fields?: FieldErrors } | null;
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PRIORITIES: Priority[] = ["LOW", "MEDIUM", "HIGH"];
+const STATUSES: MatterStatus[] = ["ACTIVE", "ON_HOLD", "CLOSED"];
+
+/** Values from a select are still only strings from the browser. */
+function pick<T extends string>(value: FormDataEntryValue | null, allowed: T[], fallback: T): T {
+  return allowed.includes(value as T) ? (value as T) : fallback;
+}
+
+/** The key date that mirrors the matter's deadline. */
+const DEADLINE_LABEL = "Deadline";
 
 /**
- * Matter references run HV-<year>-<sequence>. The sequence is derived from the
+ * Matter references run AP-<year>-<sequence>. The sequence is derived from the
  * highest reference of the year; the unique constraint on (firmId, reference)
  * is what actually guarantees no two matters share one.
  */
 async function nextReference(firmId: string) {
   const year = new Date().getFullYear();
-  const prefix = `HV-${year}-`;
+  const prefix = `AP-${year}-`;
   const last = await prisma.matter.findFirst({
     where: { firmId, reference: { startsWith: prefix } },
     orderBy: { reference: "desc" },
@@ -47,25 +57,51 @@ export async function createMatter(
   formData: FormData,
 ): Promise<MatterFormState> {
   const { actor } = await requireAdminActor();
-  const title = String(formData.get("title") ?? "").trim();
-  if (!title) return { error: "Give the matter a title." };
+  const check = createChecker(formData);
+
+  const title = check.text("title", {
+    required: "Give the matter a title.",
+    max: LIMITS.title,
+    label: "Matter title",
+  });
+  const practiceArea =
+    check.text("practiceArea", { max: LIMITS.label, label: "Practice area" }) ||
+    "Property";
+  const deadline = check.date("deadline", {
+    notPast: "A new matter's deadline can't be in the past.",
+  });
+
+  let clientId = String(formData.get("clientId") ?? "");
+  const addingClient = clientId === "__new";
+  let newClient: { name: string; email: string } | null = null;
+
+  if (addingClient) {
+    newClient = {
+      name: check.text("newClientName", {
+        required: "Enter the new client's name.",
+        max: LIMITS.name,
+        label: "Client name",
+      }),
+      email: check.email("newClientEmail", {
+        required: "Enter the new client's email address. Secure links are sent here.",
+      }),
+    };
+  } else if (!clientId) {
+    check.fail("clientId", "Choose a client for this matter.");
+  } else if (!(await prisma.client.findUnique({ where: { id: clientId }, select: { id: true } }))) {
+    check.fail("clientId", "That client no longer exists. Choose another one.");
+  }
+
+  if (!check.ok) return { fields: check.errors };
 
   const firm = await getFirm();
-  let clientId = String(formData.get("clientId") ?? "");
 
   // The Admin can add a client without leaving the form.
-  if (clientId === "__new") {
-    const name = String(formData.get("newClientName") ?? "").trim();
-    const email = String(formData.get("newClientEmail") ?? "").trim();
-    if (!name) return { error: "Enter the new client's name." };
-    if (!EMAIL.test(email)) {
-      return { error: "Enter a valid email address for the new client." };
-    }
+  if (addingClient && newClient) {
     const created = await prisma.client.create({
       data: {
         firmId: firm.id,
-        name,
-        email,
+        ...newClient,
         type:
           formData.get("newClientType") === "COMPANY" ? "COMPANY" : "INDIVIDUAL",
       },
@@ -73,22 +109,17 @@ export async function createMatter(
     clientId = created.id;
   }
 
-  if (!clientId) return { error: "Choose a client for this matter." };
-
-  const rawDeadline = String(formData.get("deadline") ?? "");
-  const deadline = rawDeadline ? new Date(`${rawDeadline}T12:00:00`) : null;
-
   const matter = await prisma.matter.create({
     data: {
       firmId: firm.id,
       clientId,
       reference: await nextReference(firm.id),
       title,
-      practiceArea: String(formData.get("practiceArea") ?? "Property"),
-      priority: (formData.get("priority") as Priority) ?? "MEDIUM",
+      practiceArea,
+      priority: pick(formData.get("priority"), PRIORITIES, "MEDIUM"),
       deadline,
       keyDates: deadline
-        ? { create: [{ label: "Deadline", date: deadline }] }
+        ? { create: [{ label: DEADLINE_LABEL, date: deadline }] }
         : undefined,
       activity: {
         create: {
@@ -106,6 +137,7 @@ export async function createMatter(
 
 export async function setMatterStatus(matterId: string, status: MatterStatus) {
   const { actor } = await requireAdminActor();
+  if (!STATUSES.includes(status)) throw new Error("Unknown matter status");
   await assertMatterWritable(matterId);
   await prisma.$transaction([
     prisma.matter.update({ where: { id: matterId }, data: { status } }),
@@ -191,11 +223,12 @@ export async function toggleTask(taskId: string, done: boolean) {
 export async function addTask(matterId: string, formData: FormData) {
   const { actor } = await requireAdminActor();
   await assertMatterWritable(matterId);
-  const title = String(formData.get("title") ?? "").trim();
-  if (!title) return;
-
-  const rawDue = String(formData.get("dueDate") ?? "");
-  const dueDate = rawDue ? new Date(`${rawDue}T12:00:00`) : null;
+  // The form checks these as the Admin types; this is the server's copy of
+  // the same rules, for a post that did not come through the form.
+  const check = createChecker(formData);
+  const title = check.text("title", { required: "-", max: LIMITS.title, label: "Task" });
+  const dueDate = check.date("dueDate");
+  if (!check.ok) return;
 
   await prisma.$transaction([
     prisma.task.create({ data: { matterId, title, dueDate } }),
@@ -214,8 +247,9 @@ export async function addTask(matterId: string, formData: FormData) {
 export async function addNote(matterId: string, formData: FormData) {
   const { actor } = await requireAdminActor();
   await assertMatterWritable(matterId);
-  const body = String(formData.get("body") ?? "").trim();
-  if (!body) return;
+  const check = createChecker(formData);
+  const body = check.text("body", { required: "-", max: LIMITS.note, label: "Note" });
+  if (!check.ok) return;
 
   await prisma.$transaction([
     prisma.note.create({
@@ -252,32 +286,61 @@ export async function updateMatter(
     throw error;
   }
 
-  const title = String(formData.get("title") ?? "").trim();
-  if (!title) return { error: "Give the matter a title." };
+  const check = createChecker(formData);
+  const title = check.text("title", {
+    required: "Give the matter a title.",
+    max: LIMITS.title,
+    label: "Matter title",
+  });
+  const practiceArea =
+    check.text("practiceArea", { max: LIMITS.label, label: "Practice area" }) ||
+    "Property";
+  // An existing matter may already be past its deadline, so a past date is
+  // allowed here; only an unreadable one is refused.
+  const deadline = check.date("deadline");
+  if (!check.ok) return { fields: check.errors };
 
-  const rawDeadline = String(formData.get("deadline") ?? "");
-  const deadline = rawDeadline ? new Date(`${rawDeadline}T12:00:00`) : null;
-
-  await prisma.$transaction([
-    prisma.matter.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.matter.update({
       where: { id: matterId },
       data: {
         title,
-        practiceArea: String(formData.get("practiceArea") ?? "Property"),
-        priority: (formData.get("priority") as Priority) ?? "MEDIUM",
-        status: (formData.get("status") as MatterStatus) ?? "ACTIVE",
+        practiceArea,
+        priority: pick(formData.get("priority"), PRIORITIES, "MEDIUM"),
+        status: pick(formData.get("status"), STATUSES, "ACTIVE"),
         deadline,
       },
-    }),
-    prisma.activityEvent.create({
+    });
+
+    // The deadline is also listed among the key dates, under the label the
+    // matter was opened with. Keep that entry in step, so the header and the
+    // Key dates card never show two different deadlines.
+    const existing = await tx.matterKeyDate.findFirst({
+      where: { matterId, label: DEADLINE_LABEL },
+      select: { id: true },
+    });
+    if (deadline && existing) {
+      await tx.matterKeyDate.update({
+        where: { id: existing.id },
+        data: { date: deadline },
+      });
+    } else if (deadline) {
+      await tx.matterKeyDate.create({
+        data: { matterId, label: DEADLINE_LABEL, date: deadline },
+      });
+    } else if (existing) {
+      await tx.matterKeyDate.delete({ where: { id: existing.id } });
+    }
+
+    await tx.activityEvent.create({
       data: {
         matterId,
         type: "MATTER",
         summary: "Matter details updated",
         ...actor,
       },
-    }),
-  ]);
+    });
+  });
 
   revalidatePath(`/matters/${matterId}`);
   revalidatePath("/matters");
@@ -288,11 +351,10 @@ export async function addKeyDate(matterId: string, formData: FormData) {
   const { actor } = await requireAdminActor();
   await assertMatterWritable(matterId);
 
-  const label = String(formData.get("label") ?? "").trim();
-  const raw = String(formData.get("date") ?? "");
-  if (!label || !raw) return;
-
-  const date = new Date(`${raw}T12:00:00`);
+  const check = createChecker(formData);
+  const label = check.text("label", { required: "-", max: LIMITS.label, label: "Key date" });
+  const date = check.date("date", { required: "-" });
+  if (!check.ok || !date) return;
 
   await prisma.$transaction([
     prisma.matterKeyDate.create({ data: { matterId, label, date } }),

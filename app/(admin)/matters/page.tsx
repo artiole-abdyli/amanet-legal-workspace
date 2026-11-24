@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
+import { Icon } from "@/components/icons";
 import { MatterFilters } from "@/components/matters/matter-filters";
 import { Badge, matterStatusTone } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
@@ -65,7 +66,45 @@ async function MattersTable({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-card border border-line bg-surface">
+      {/* On a phone a six-column table only scrolls sideways, so each matter
+          becomes a card with the same facts stacked. */}
+      <ul className="flex flex-col divide-y divide-line overflow-hidden rounded-card border border-line bg-surface sm:hidden">
+        {matters.map((matter) => {
+          const key = nextKeyDate(matter);
+          const archived = matter.archivedAt !== null;
+          return (
+            <li key={matter.id}>
+              <Link
+                href={`/matters/${matter.id}`}
+                className="flex flex-col gap-1.5 px-4 py-3.5 hover:bg-bg"
+              >
+                <span className="flex items-start justify-between gap-3">
+                  <span className="min-w-0">
+                    <b className="block font-semibold text-fg">{matter.title}</b>
+                    <small className="block text-muted">{matter.client.name}</small>
+                  </span>
+                  <Badge
+                    tone={archived ? "neutral" : matterStatusTone[matter.status]}
+                  >
+                    {archived ? "Archived" : matterStatusLabel[matter.status]}
+                  </Badge>
+                </span>
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <small className="font-mono text-[11.5px] text-muted">
+                    {matter.reference}
+                  </small>
+                  <PriorityMeter priority={matter.priority} />
+                  {!archived && matter.status !== "CLOSED" && key ? (
+                    <DueDate date={key.date} prefix={key.label} />
+                  ) : null}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="hidden overflow-x-auto rounded-card border border-line bg-surface sm:block">
         <table className="w-full min-w-[820px] border-collapse">
           <thead>
             <tr className="bg-surface-2 text-left">
@@ -181,11 +220,20 @@ export default function MattersPage({
 }) {
   return (
     <>
-      {/* No "New matter" button here: the one in the top bar is on every page,
-          and two of the same action side by side is just noise. */}
+      {/* From `sm` up, "New matter" sits in the top bar on every page. On a
+          phone the top bar keeps to search, notifications and the menu, so
+          the action lives here instead, beside the list it adds to. */}
       <PageHeader
         title="Matters"
-   />
+        actions={
+          <div className="sm:hidden">
+            <Link href="/matters/new" className={buttonClasses("primary")}>
+              <Icon name="plus" />
+              New matter
+            </Link>
+          </div>
+        }
+      />
 
       <Suspense fallback={<div className="h-10" />}>
         <MatterFilters />

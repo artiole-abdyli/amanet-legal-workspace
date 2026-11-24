@@ -128,29 +128,33 @@ async function MatterView({
             status={matter.status}
             disabled={archived}
           />
+          {/* An archived matter is read-only, so none of the actions that
+              would write to it are offered. The server refuses them too. */}
           {archived ? null : (
-            <Link
-              href={`/matters/${matter.id}/edit`}
-              className={buttonClasses("default")}
-            >
-              <Icon name="pen" />
-              Edit
-            </Link>
+            <>
+              <Link
+                href={`/matters/${matter.id}/edit`}
+                className={buttonClasses("default")}
+              >
+                <Icon name="pen" />
+                Edit
+              </Link>
+              <Link
+                href={`/matters/${matter.id}/request-documents`}
+                className={buttonClasses("default")}
+              >
+                <Icon name="upload" />
+                Request documents
+              </Link>
+              <Link
+                href={`/matters/${matter.id}/request-signature`}
+                className={buttonClasses("primary")}
+              >
+                <Icon name="pen" />
+                Request signature
+              </Link>
+            </>
           )}
-          <Link
-            href={`/matters/${matter.id}/request-documents`}
-            className={buttonClasses("default")}
-          >
-            <Icon name="upload" />
-            Request documents
-          </Link>
-          <Link
-            href={`/matters/${matter.id}/request-signature`}
-            className={buttonClasses("primary")}
-          >
-            <Icon name="pen" />
-            Request signature
-          </Link>
           {archived ? null : (
             <form action={archiveMatter.bind(null, matter.id)}>
               <Button

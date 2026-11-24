@@ -13,7 +13,9 @@ import {
   FormPage,
   Input,
   Textarea,
+  ValidatedForm,
 } from "@/components/ui/form";
+import { LIMITS, todayInput } from "@/lib/validation";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { getMatter } from "@/lib/queries";
 
@@ -21,6 +23,13 @@ export const metadata = { title: "Request documents" };
 
 type Params = Promise<{ id: string }>;
 type Search = Promise<{ [key: string]: string | string[] | undefined }>;
+
+/** For a post that skipped the form's own checks. */
+const SERVER_ERRORS: Record<string, string> = {
+  title: "Say which document you need.",
+  details: `Keep the details under ${LIMITS.description} characters.`,
+  due: "The date it is needed by can't be in the past.",
+};
 
 function inAWeek() {
   const date = new Date();
@@ -36,7 +45,8 @@ async function RequestDocuments({
   searchParams: Search;
 }) {
   const { id } = await params;
-  const showError = (await searchParams).error === "title";
+  const raw = (await searchParams).error;
+  const error = SERVER_ERRORS[Array.isArray(raw) ? raw[0] : (raw ?? "")];
   const matter = await getMatter(id);
   if (!matter) notFound();
 
@@ -49,16 +59,22 @@ async function RequestDocuments({
       title="Request documents"
       description="The client uploads through a secure link. They never need an account."
     >
-      <form action={createDocumentRequest.bind(null, id)}>
+      <ValidatedForm action={createDocumentRequest.bind(null, id)}>
         <FormCard>
-          {showError ? (
+          {error ? (
             <div role="alert">
-              <Callout tone="warn">Say which document you need.</Callout>
+              <Callout tone="warn">{error}</Callout>
             </div>
           ) : null}
 
-          <Field label="What do you need?">
-            <Input name="title" required placeholder="e.g. Proof of address" />
+          <Field label="What do you need?" required>
+            <Input
+              name="title"
+              required
+              data-max={LIMITS.title}
+              data-msg-required="Say which document you need, e.g. Proof of address."
+              placeholder="e.g. Proof of address"
+            />
           </Field>
 
           <Field
@@ -68,12 +84,19 @@ async function RequestDocuments({
             <Textarea
               name="description"
               rows={3}
+              data-max={LIMITS.description}
               placeholder="A utility bill or council tax letter dated within the last three months."
             />
           </Field>
 
           <Field label="Needed by">
-            <Input type="date" name="dueDate" defaultValue={inAWeek()} />
+            <Input
+              type="date"
+              name="dueDate"
+              defaultValue={inAWeek()}
+              min={todayInput()}
+              data-msg-min="The date it is needed by can't be in the past."
+            />
           </Field>
 
           <Callout>
@@ -96,7 +119,7 @@ async function RequestDocuments({
             </Button>
           </FormActions>
         </FormCard>
-      </form>
+      </ValidatedForm>
     </FormPage>
   );
 }

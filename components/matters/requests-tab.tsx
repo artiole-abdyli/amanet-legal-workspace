@@ -10,6 +10,8 @@ import { Badge, requestStatusTone } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Callout, Card, EmptyState } from "@/components/ui/card";
 import { DueDate, VersionTag } from "@/components/ui/meta";
+import { Field, Textarea, ValidatedForm } from "@/components/ui/form";
+import { LIMITS } from "@/lib/validation";
 import { formatDate, requestStatusLabel } from "@/lib/format";
 import { getMatter, getMatterRequests } from "@/lib/queries";
 
@@ -127,20 +129,20 @@ export async function RequestsTab({ matterId }: { matterId: string }) {
                           <summary className={buttonClasses("default", "sm")}>
                             Request changes
                           </summary>
-                          <form
+                          <ValidatedForm
                             action={requestChanges.bind(null, request.id)}
                             className="mt-2 flex w-[min(360px,80vw)] flex-col gap-2 rounded-card border border-line bg-surface p-3 shadow-card"
                           >
-                            <label className="flex flex-col gap-1.5 text-[13px] font-medium">
-                              What needs to change?
-                              <textarea
+                            <Field label="What needs to change?" required>
+                              <Textarea
                                 name="note"
                                 required
                                 rows={3}
+                                data-max={LIMITS.description}
+                                data-msg-required="Tell the client what to fix, so the next copy is right."
                                 placeholder="e.g. The second page is missing."
-                                className="rounded-lg border border-line bg-surface px-2.5 py-2 font-normal focus:border-muted focus:outline-none"
                               />
-                            </label>
+                            </Field>
                             <p className="text-[12.5px] text-muted">
                               The client gets a new upload link by email. The
                               file they already sent is kept.
@@ -149,7 +151,7 @@ export async function RequestsTab({ matterId }: { matterId: string }) {
                               <Icon name="send" className="size-4" />
                               Send to client
                             </Button>
-                          </form>
+                          </ValidatedForm>
                         </details>
 
                         <form

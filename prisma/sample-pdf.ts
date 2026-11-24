@@ -88,7 +88,7 @@ export async function buildSamplePdf(
 
   const pdf = await PDFDocument.create();
   pdf.setTitle(title);
-  pdf.setProducer("Harlow & Vance matter workspace");
+  pdf.setProducer("Abdyli & Partners matter workspace");
 
   const serif = await pdf.embedFont(StandardFonts.TimesRoman);
   const serifBold = await pdf.embedFont(StandardFonts.TimesRomanBold);
@@ -122,7 +122,7 @@ export async function buildSamplePdf(
     y -= 28;
   };
 
-  header("HARLOW & VANCE LLP", reference);
+  header("ABDYLI & PARTNERS", reference);
 
   page.drawText(title, { x: MARGIN, y, size: 19, font: serifBold, color: INK });
   y -= 18;
@@ -207,7 +207,7 @@ export async function buildSamplePdf(
       : "Signature of client",
     { x: MARGIN, y: slotY - 12, size: 8, font: sans, color: GREY },
   );
-  page.drawText("For Harlow & Vance LLP", {
+  page.drawText("For Abdyli & Partners", {
     x: MARGIN + slotWidth + 36,
     y: slotY - 12,
     size: 8,
@@ -279,7 +279,7 @@ export async function buildSamplePdf(
 
     cy -= 10;
     for (const line of wrap(
-      "This certificate records how the document above was signed electronically. It is produced by the Harlow & Vance matter workspace and is not a qualified electronic signature under eIDAS.",
+      "This certificate records how the document above was signed electronically. It is produced by the Abdyli & Partners matter workspace and is not a qualified electronic signature under eIDAS.",
       sans,
       8.5,
       inner,

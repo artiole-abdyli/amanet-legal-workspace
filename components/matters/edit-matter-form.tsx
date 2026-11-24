@@ -12,7 +12,9 @@ import {
   FormCard,
   Input,
   Select,
+  ValidatedForm,
 } from "@/components/ui/form";
+import { LIMITS } from "@/lib/validation";
 
 const PRACTICE_AREAS = [
   "Property",
@@ -49,10 +51,16 @@ export function EditMatterForm({
     : [practiceArea, ...PRACTICE_AREAS];
 
   return (
-    <form action={formAction}>
+    <ValidatedForm action={formAction} serverErrors={state?.fields}>
       <FormCard>
-        <Field label="Matter title">
-          <Input name="title" required defaultValue={title} />
+        <Field label="Matter title" required>
+          <Input
+            name="title"
+            required
+            defaultValue={title}
+            data-max={LIMITS.title}
+            data-msg-required="Give the matter a title."
+          />
         </Field>
 
         <FieldRow>
@@ -103,6 +111,6 @@ export function EditMatterForm({
           </Button>
         </FormActions>
       </FormCard>
-    </form>
+    </ValidatedForm>
   );
 }

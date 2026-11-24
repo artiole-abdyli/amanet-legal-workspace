@@ -3,11 +3,12 @@
 import { redirect } from "next/navigation";
 
 import { verifyPassword } from "@/lib/password";
+import { isEmail, type FieldErrors } from "@/lib/validation";
 import { isRateLimited, rateLimit, waitMessage } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { createSession, destroySession } from "@/lib/session";
 
-export type LoginState = { error: string } | null;
+export type LoginState = { error?: string; fields?: FieldErrors } | null;
 
 export async function signIn(
   _previous: LoginState,
@@ -16,9 +17,11 @@ export async function signIn(
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
 
-  if (!email || !password) {
-    return { error: "Enter your email address and password." };
-  }
+  const fields: FieldErrors = {};
+  if (!email) fields.email = "Enter your email address.";
+  else if (!isEmail(email)) fields.email = "Enter a valid email address, like name@example.com.";
+  if (!password) fields.password = "Enter your password.";
+  if (Object.keys(fields).length) return { fields };
 
   // Ten wrong guesses in fifteen minutes, counted per account rather than per
   // address: served without a proxy in front, the address comes from a header

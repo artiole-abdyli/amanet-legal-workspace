@@ -27,10 +27,11 @@ async function ClientsTable({
 
   const query = one(params.q)?.trim() || undefined;
   const type = one(params.type) as Filters["type"];
+  const sort: Filters["sort"] = one(params.sort) === "name" ? "name" : "newest";
   const page = Number(one(params.page) ?? 1) || 1;
 
   const [result, waiting] = await Promise.all([
-    getClients({ query, type, page }),
+    getClients({ query, type, sort, page }),
     getClientWaitingCounts(),
   ]);
   const { clients, total, pageCount, perPage } = result;
@@ -70,7 +71,51 @@ async function ClientsTable({
 
   return (
     <>
-      <div className="overflow-x-auto rounded-card border border-line bg-surface">
+      {/* Cards on a phone, the table from `sm` up. */}
+      <ul className="flex flex-col divide-y divide-line overflow-hidden rounded-card border border-line bg-surface sm:hidden">
+        {clients.map((client) => {
+          const outstanding = waiting.get(client.id) ?? 0;
+          return (
+            <li key={client.id} className="flex items-start gap-3 px-4 py-3.5">
+              <span className="flex min-w-0 flex-1 flex-col gap-1">
+                <b className="font-sans font-semibold">{client.name}</b>
+                <small className="text-muted">
+                  {client.type === "COMPANY" ? "Company" : "Individual"}
+                  {client.contactName ? ` · ${client.contactName}` : ""}
+                </small>
+                <span className="font-mono text-[12.5px] break-all">
+                  {client.email}
+                </span>
+                <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                  {client.matters.map((matter) => (
+                    <Link
+                      key={matter.id}
+                      href={`/matters/${matter.id}`}
+                      className="rounded-md bg-surface-2 px-2 py-0.5 text-xs whitespace-nowrap text-muted hover:text-fg"
+                    >
+                      {matter.reference}
+                    </Link>
+                  ))}
+                  {outstanding > 0 ? (
+                    <Badge tone="warn">
+                      {outstanding} item{outstanding === 1 ? "" : "s"} waiting
+                    </Badge>
+                  ) : null}
+                </span>
+              </span>
+              <Link
+                href={`/clients/${client.id}`}
+                className={buttonClasses("ghost", "sm")}
+                aria-label={`Edit ${client.name}`}
+              >
+                <Icon name="pen" className="size-4" />
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="hidden overflow-x-auto rounded-card border border-line bg-surface sm:block">
         <table className="w-full min-w-[820px] border-collapse">
           <thead>
             <tr className="bg-surface-2 text-left">

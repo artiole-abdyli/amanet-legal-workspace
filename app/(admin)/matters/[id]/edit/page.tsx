@@ -6,7 +6,8 @@ import { Icon } from "@/components/icons";
 import { EditMatterForm } from "@/components/matters/edit-matter-form";
 import { Button } from "@/components/ui/button";
 import { Card, SectionTitle } from "@/components/ui/card";
-import { Field, Input } from "@/components/ui/form";
+import { Field, Input, ValidatedForm } from "@/components/ui/form";
+import { LIMITS } from "@/lib/validation";
 import { FormPage } from "@/components/ui/form";
 import { CalendarTile } from "@/components/ui/meta";
 import { SkeletonCard } from "@/components/ui/skeleton";
@@ -82,25 +83,32 @@ async function EditMatter({ params }: { params: Params }) {
           </ul>
         )}
 
-        <form
+        <ValidatedForm
           action={addKeyDate.bind(null, matter.id)}
-          className="flex flex-wrap items-end gap-2.5 border-t border-line pt-4"
+          className="flex flex-wrap items-start gap-2.5 border-t border-line pt-4"
         >
-          <Field label="New key date" className="min-w-0 flex-1 basis-[200px]">
+          <Field label="New key date" required className="min-w-0 flex-1 basis-[200px]">
             <Input
               name="label"
               required
+              data-max={LIMITS.label}
+              data-msg-required="Name the key date, e.g. Exchange of contracts."
               placeholder="e.g. Exchange of contracts"
             />
           </Field>
-          <Field label="On">
-            <Input type="date" name="date" required />
+          <Field label="On" required>
+            <Input
+              type="date"
+              name="date"
+              required
+              data-msg-required="Choose the date."
+            />
           </Field>
-          <Button type="submit">
+          <Button type="submit" className="mt-[26px]">
             <Icon name="plus" />
             Add
           </Button>
-        </form>
+        </ValidatedForm>
       </Card>
     </FormPage>
   );

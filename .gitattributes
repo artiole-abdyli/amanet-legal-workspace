@@ -1,0 +1,4 @@
+# Shell scripts run inside the Linux container; a CRLF checkout on Windows
+# would make sh fail on the first line.
+*.sh text eol=lf
+Dockerfile text eol=lf

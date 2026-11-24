@@ -7,7 +7,7 @@ test.describe("who can see the workspace", () => {
     await page.goto("/matters");
     await expect(page).toHaveURL(/\/login/);
     await expect(
-      page.getByRole("heading", { name: "Harlow & Vance" }),
+      page.getByRole("heading", { name: "Abdyli & Partners" }),
     ).toBeVisible();
   });
 
@@ -35,7 +35,7 @@ test.describe("who can see the workspace", () => {
   }) => {
     await signIn(page);
     await expect(
-      page.getByRole("complementary").getByText("Elena Vance", { exact: true }),
+      page.getByRole("complementary").getByText("Artiole Abdyli", { exact: true }),
     ).toBeVisible();
 
     await page.getByRole("button", { name: "Sign out" }).click();

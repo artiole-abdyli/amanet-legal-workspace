@@ -56,6 +56,7 @@ const PATHS = {
   ),
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
   x: <path d="M6 6l12 12M18 6 6 18" />,
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   link: (
     <>
       <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
@@ -181,7 +182,7 @@ export function FirmMark({ className }: { className?: string }) {
         className,
       )}
     >
-      H&amp;V
+      A&amp;P
     </span>
   );
 }

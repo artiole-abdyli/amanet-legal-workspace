@@ -15,7 +15,9 @@ import {
   Input,
   Select,
   Textarea,
+  ValidatedForm,
 } from "@/components/ui/form";
+import { LIMITS } from "@/lib/validation";
 import { SkeletonCard } from "@/components/ui/skeleton";
 import { documentTitle } from "@/lib/format";
 import { getMatter, getMatterDocuments } from "@/lib/queries";
@@ -29,6 +31,7 @@ const ERRORS: Record<string, string> = {
   document: "Choose a document from this matter's Contracts folder.",
   name: "Enter the signer's name.",
   email: "Enter a valid email address for the signer.",
+  message: `Keep the message under ${LIMITS.message} characters.`,
 };
 
 async function RequestSignature({
@@ -78,7 +81,7 @@ async function RequestSignature({
           />
         </Card>
       ) : (
-        <form action={createSignatureRequest.bind(null, id)}>
+        <ValidatedForm action={createSignatureRequest.bind(null, id)}>
           <FormCard>
             {error ? (
               <div role="alert">
@@ -88,9 +91,15 @@ async function RequestSignature({
 
             <Field
               label="Document"
+              required
               hint="The client signs this exact version. Later uploads will not change it."
             >
-              <Select name="documentId" defaultValue={preselected}>
+              <Select
+                name="documentId"
+                required
+                defaultValue={preselected}
+                data-msg-required="Choose the document to be signed."
+              >
                 {contracts.map((doc) => (
                   <option key={doc.id} value={doc.id}>
                     {documentTitle(doc.name)} (v
@@ -101,14 +110,21 @@ async function RequestSignature({
             </Field>
 
             <FieldRow>
-              <Field label="Signer name">
-                <Input name="signerName" required defaultValue={signerName} />
+              <Field label="Signer name" required>
+                <Input
+                  name="signerName"
+                  required
+                  defaultValue={signerName}
+                  data-max={LIMITS.name}
+                  data-msg-required="Enter the name of the person signing."
+                />
               </Field>
-              <Field label="Signer email">
+              <Field label="Signer email" required>
                 <Input
                   type="email"
                   name="signerEmail"
                   required
+                  data-msg-required="Enter the signer's email address. The link is sent here."
                   defaultValue={matter.client.email}
                 />
               </Field>
@@ -126,6 +142,7 @@ async function RequestSignature({
               <Textarea
                 name="message"
                 rows={3}
+                data-max={LIMITS.message}
                 placeholder="Please review and sign the attached document. Call me if anything is unclear."
               />
             </Field>
@@ -148,7 +165,7 @@ async function RequestSignature({
               </Button>
             </FormActions>
           </FormCard>
-        </form>
+        </ValidatedForm>
       )}
     </FormPage>
   );

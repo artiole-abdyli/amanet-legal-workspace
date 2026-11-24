@@ -8,6 +8,7 @@ import { assertMatterWritable, requireAdminActor } from "@/lib/admin";
 import { sendEmail } from "@/lib/email";
 import { firstName, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { LIMITS, createChecker } from "@/lib/validation";
 import {
   createSecureToken,
   hashSecureToken,
@@ -118,7 +119,7 @@ async function emailUploadLink(
       "",
       `This link was made for you alone and stops working on ${formatDate(link.expiresAt)}.`,
       "",
-      "Harlow & Vance LLP",
+      "Abdyli & Partners",
     ].join("\n"),
   });
 }
@@ -130,15 +131,25 @@ export async function createDocumentRequest(
   const { actor } = await requireAdminActor();
   await assertMatterWritable(matterId);
 
-  const title = String(formData.get("title") ?? "").trim();
-  if (!title) {
-    redirect(`/matters/${matterId}/request-documents?error=title`);
+  // The form shows these problems field by field before it posts; a post that
+  // skipped the form is sent back with the first one.
+  const check = createChecker(formData);
+  const title = check.text("title", { required: "title", max: LIMITS.title, label: "title" });
+  const details = check.text("description", {
+    max: LIMITS.description,
+    label: "description",
+  });
+  const dueDate = check.date("dueDate", { notPast: "due" });
+  if (!check.ok) {
+    const problem = check.errors.title
+      ? "title"
+      : check.errors.description
+        ? "details"
+        : "due";
+    redirect(`/matters/${matterId}/request-documents?error=${problem}`);
   }
 
-  const description =
-    String(formData.get("description") ?? "").trim() ||
-    "Please upload this document as a PDF.";
-  const rawDue = String(formData.get("dueDate") ?? "");
+  const description = details || "Please upload this document as a PDF.";
 
   const matter = await prisma.matter.findUniqueOrThrow({
     where: { id: matterId },
@@ -152,7 +163,7 @@ export async function createDocumentRequest(
         matterId,
         title,
         description,
-        dueDate: rawDue ? new Date(`${rawDue}T12:00:00`) : null,
+        dueDate,
       },
     });
     const link = await replaceUploadLink(tx, created.id);
@@ -211,8 +222,9 @@ export async function acceptDocumentRequest(requestId: string) {
 /** Only a submitted file can be sent back for a new copy. */
 export async function requestChanges(requestId: string, formData: FormData) {
   const { actor } = await requireAdminActor();
-  const note = String(formData.get("note") ?? "").trim();
-  if (!note) return;
+  const check = createChecker(formData);
+  const note = check.text("note", { required: "-", max: LIMITS.description, label: "Note" });
+  if (!check.ok) return;
 
   const request = await loadRequest(requestId);
   await assertMatterWritable(request.matter.id);

@@ -26,7 +26,7 @@ const signer = {
   method: "DRAWN" as const,
   sourceSha256: "a".repeat(64),
   documentTitle: "Purchase contract",
-  matterReference: "HV-2026-0142",
+  matterReference: "AP-2026-0142",
   signerIp: "192.0.2.24",
   signerUserAgent: "Mozilla/5.0",
 };

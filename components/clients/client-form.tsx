@@ -13,7 +13,9 @@ import {
   FormCard,
   Input,
   Select,
+  ValidatedForm,
 } from "@/components/ui/form";
+import { LIMITS } from "@/lib/validation";
 
 export type ClientValues = {
   name: string;
@@ -38,12 +40,14 @@ export function ClientForm({
   const [state, formAction, pending] = useActionState(action, null);
 
   return (
-    <form action={formAction}>
+    <ValidatedForm action={formAction} serverErrors={state?.fields}>
       <FormCard>
-        <Field label="Client name">
+        <Field label="Client name" required>
           <Input
             name="name"
             required
+            data-max={LIMITS.name}
+            data-msg-required="Enter the client's name."
             defaultValue={values?.name}
             placeholder="Person or company name"
           />
@@ -59,6 +63,7 @@ export function ClientForm({
           <Field label="Contact person" hint="For companies.">
             <Input
               name="contactName"
+              data-max={LIMITS.name}
               defaultValue={values?.contactName ?? ""}
               placeholder="Who signs and receives links"
             />
@@ -66,11 +71,12 @@ export function ClientForm({
         </FieldRow>
 
         <FieldRow>
-          <Field label="Email">
+          <Field label="Email" required>
             <Input
               type="email"
               name="email"
               required
+              data-msg-required="Enter the client's email address. Every secure link is sent here."
               defaultValue={values?.email}
               placeholder="name@example.com"
             />
@@ -78,6 +84,8 @@ export function ClientForm({
           <Field label="Phone">
             <Input
               name="phone"
+              type="tel"
+              data-kind="phone"
               defaultValue={values?.phone ?? ""}
               placeholder="Optional"
             />
@@ -104,6 +112,6 @@ export function ClientForm({
           </Button>
         </FormActions>
       </FormCard>
-    </form>
+    </ValidatedForm>
   );
 }

@@ -11,6 +11,7 @@ import {
   FormCard,
   FormPage,
   Input,
+  ValidatedForm,
 } from "@/components/ui/form";
 import { SkeletonCard } from "@/components/ui/skeleton";
 
@@ -43,7 +44,7 @@ async function UploadDocument({
       title="Upload a document"
       description="PDFs only, up to 20 MB."
     >
-      <form action={uploadMatterDocument.bind(null, id)}>
+      <ValidatedForm action={uploadMatterDocument.bind(null, id)}>
         <FormCard>
           {error ? (
             <div role="alert">
@@ -51,11 +52,12 @@ async function UploadDocument({
             </div>
           ) : null}
 
-          <Field label="PDF file">
+          <Field label="PDF file" required>
             <Input
               type="file"
               name="file"
               required
+              data-msg-required="Choose the PDF to upload."
               accept="application/pdf,.pdf"
               className="file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:font-medium"
             />
@@ -81,7 +83,7 @@ async function UploadDocument({
             </Button>
           </FormActions>
         </FormCard>
-      </form>
+      </ValidatedForm>
     </FormPage>
   );
 }

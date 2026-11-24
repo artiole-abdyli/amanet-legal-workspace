@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { FirmMark, Icon } from "@/components/icons";
 import { NotificationsBell } from "@/components/shell/notifications";
 import { SearchDialog } from "@/components/shell/search-dialog";
-import { Sidebar } from "@/components/shell/sidebar";
+import { MobileNav, Sidebar } from "@/components/shell/sidebar";
 import { buttonClasses } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireAdmin } from "@/lib/auth";
@@ -22,29 +22,35 @@ import {
  * holding the whole page back.
  */
 
-async function SidebarData() {
+async function shellProps() {
   const user = await requireAdmin();
   const firm = await getFirm();
-  return (
-    <Sidebar
-      firmName={firm.name.replace(/ LLP$/, "")}
-      userName={user.name}
-      userRole={user.role === "ADMIN" ? "Admin" : user.role}
-    />
-  );
+  return {
+    firmName: firm.name.replace(/ LLP$/, ""),
+    userName: user.name,
+    userRole: user.role === "ADMIN" ? "Admin" : user.role,
+  };
+}
+
+async function SidebarData() {
+  return <Sidebar {...await shellProps()} />;
+}
+
+async function MobileNavData() {
+  return <MobileNav {...await shellProps()} />;
 }
 
 function SidebarFallback() {
   return (
-    <aside className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-surface px-4 py-2.5 lg:h-screen lg:flex-col lg:items-stretch lg:gap-6 lg:self-start lg:border-r lg:border-b-0 lg:px-3.5 lg:py-5">
-      <div className="flex items-center gap-2.5 lg:px-1.5">
+    <aside className="sticky top-0 hidden h-screen flex-col gap-6 self-start border-r border-line bg-surface px-3.5 py-5 lg:flex">
+      <div className="flex items-center gap-2.5 px-1.5">
         <FirmMark />
-        <Skeleton className="hidden h-7 w-32 lg:block" />
+        <Skeleton className="h-7 w-32" />
       </div>
-      <div className="flex gap-2 lg:flex-col">
-        <Skeleton className="h-9 w-28" />
-        <Skeleton className="h-9 w-28" />
-        <Skeleton className="h-9 w-28" />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
       </div>
     </aside>
   );
@@ -65,10 +71,14 @@ async function TopBarData() {
           notifications={notifications}
           unreadCount={unreadCount}
         />
-        <Link href="/matters/new" className={buttonClasses("primary")}>
-          <Icon name="plus" />
-          <span className="hidden sm:inline">New matter</span>
-        </Link>
+        {/* On a phone this lives in the menu, so the bar keeps to search,
+            notifications and the menu button. */}
+        <div className="hidden sm:block">
+          <Link href="/matters/new" className={buttonClasses("primary")}>
+            <Icon name="plus" />
+            New matter
+          </Link>
+        </div>
       </div>
     </>
   );
@@ -80,7 +90,7 @@ function TopBarFallback() {
       <Skeleton className="h-9 min-w-0 flex-1 sm:max-w-[520px]" />
       <div className="ml-auto flex items-center gap-2.5">
         <Skeleton className="size-9 rounded-lg" />
-        <Skeleton className="h-9 w-32 rounded-lg" />
+        <Skeleton className="hidden h-9 w-32 rounded-lg sm:block" />
       </div>
     </>
   );
@@ -94,9 +104,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       </Suspense>
 
       <div className="flex min-w-0 flex-col">
-        <header className="flex items-center gap-3 border-b border-line bg-surface px-4 py-2.5 lg:px-7 lg:py-3.5">
+        <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-surface px-3 py-2.5 sm:gap-3 sm:px-4 lg:static lg:px-7 lg:py-3.5">
           <Suspense fallback={<TopBarFallback />}>
             <TopBarData />
+          </Suspense>
+          <Suspense
+            fallback={<div aria-hidden="true" className="size-9 shrink-0 lg:hidden" />}
+          >
+            <MobileNavData />
           </Suspense>
         </header>
 

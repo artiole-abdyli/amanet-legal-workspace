@@ -7,27 +7,43 @@ import { redirect } from "next/navigation";
 
 import { prisma } from "@/lib/prisma";
 import { getFirm } from "@/lib/queries";
+import {
+  LIMITS,
+  createChecker,
+  isPhone,
+  type FieldErrors,
+} from "@/lib/validation";
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export type ClientFormState = { error?: string; fields?: FieldErrors } | null;
 
-export type ClientFormState = { error: string } | null;
-
+/** Reads and checks the form together, so every problem comes back at once. */
 function read(formData: FormData) {
-  return {
-    name: String(formData.get("name") ?? "").trim(),
-    type: formData.get("type") === "COMPANY" ? ("COMPANY" as const) : ("INDIVIDUAL" as const),
-    contactName: String(formData.get("contactName") ?? "").trim() || null,
-    email: String(formData.get("email") ?? "").trim(),
-    phone: String(formData.get("phone") ?? "").trim() || null,
+  const check = createChecker(formData);
+  const input = {
+    name: check.text("name", {
+      required: "Enter the client's name.",
+      max: LIMITS.name,
+      label: "Client name",
+    }),
+    type:
+      formData.get("type") === "COMPANY"
+        ? ("COMPANY" as const)
+        : ("INDIVIDUAL" as const),
+    contactName:
+      check.text("contactName", { max: LIMITS.name, label: "Contact person" }) ||
+      null,
+    email: check.email("email", {
+      required: "Enter the client's email address. Every secure link is sent here.",
+    }),
+    phone: check.text("phone", { max: LIMITS.phone, label: "Phone" }) || null,
   };
-}
-
-function validate(input: ReturnType<typeof read>): string | null {
-  if (!input.name) return "Enter the client's name.";
-  if (!EMAIL.test(input.email)) {
-    return "Enter a valid email address, like name@example.com. Every secure link is sent here.";
+  if (input.phone && !check.errors.phone && !isPhone(input.phone)) {
+    check.fail(
+      "phone",
+      "Enter a phone number with at least six digits, like +383 44 123 456.",
+    );
   }
-  return null;
+  return { input, errors: check.errors, ok: check.ok };
 }
 
 export async function createClient(
@@ -35,9 +51,8 @@ export async function createClient(
   formData: FormData,
 ): Promise<ClientFormState> {
   await requireAdmin();
-  const input = read(formData);
-  const error = validate(input);
-  if (error) return { error };
+  const { input, errors, ok } = read(formData);
+  if (!ok) return { fields: errors };
 
   const firm = await getFirm();
   await prisma.client.create({ data: { firmId: firm.id, ...input } });
@@ -52,9 +67,8 @@ export async function updateClient(
   formData: FormData,
 ): Promise<ClientFormState> {
   await requireAdmin();
-  const input = read(formData);
-  const error = validate(input);
-  if (error) return { error };
+  const { input, errors, ok } = read(formData);
+  if (!ok) return { fields: errors };
 
   await prisma.client.update({ where: { id: clientId }, data: input });
 
