@@ -40,7 +40,10 @@ export async function GET(
 
   const download =
     new URL(request.url).searchParams.get("download") === "1";
-  const filename = version.document.name.replace(/["\\]/g, "");
+  // Header values must be bytes 0-255, so the plain `filename` is an ASCII
+  // fallback ("—" in "… — signed.pdf" would otherwise make Response throw).
+  // Browsers that understand `filename*` use the exact UTF-8 name instead.
+  const filename = asciiFilename(version.document.name);
 
   return new Response(new Uint8Array(bytes), {
     headers: {
@@ -52,4 +55,14 @@ export async function GET(
       "X-Content-Type-Options": "nosniff",
     },
   });
+}
+
+function asciiFilename(name: string): string {
+  const ascii = name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "") // drop accents: "ë" -> "e"
+    .replace(/[\u2013\u2014]/g, "-") // en and em dashes
+    .replace(/[^\x20-\x7e]/g, "_") // anything else outside printable ASCII
+    .replace(/["\\]/g, "");
+  return ascii || "document.pdf";
 }

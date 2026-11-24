@@ -16,9 +16,9 @@ const VARIANTS: Record<ButtonVariant, string> = {
 };
 
 const SIZES: Record<ButtonSize, string> = {
-  sm: "gap-1.5 px-2.5 py-1 text-[13px]",
-  md: "gap-2 px-3.5 py-2",
-  lg: "gap-2 px-5 py-3 text-[15px]",
+  sm: "gap-1.5 px-2.5 py-1 text-[12.5px] [&_svg]:size-3.5",
+  md: "gap-1.5 px-3 py-1.5 text-[13.5px] [&_svg]:size-4",
+  lg: "gap-2 px-4 py-2.5 text-[14.5px]",
 };
 
 export function buttonClasses(
@@ -66,7 +66,7 @@ export function IconButton({
     <button
       type={type}
       className={cn(
-        "relative grid size-9 cursor-pointer place-items-center rounded-lg border border-transparent text-muted transition-colors hover:bg-surface-2 hover:text-fg",
+        "relative grid size-8 cursor-pointer place-items-center rounded-lg border border-transparent text-muted transition-colors hover:bg-surface-2 hover:text-fg",
         className,
       )}
       {...props}

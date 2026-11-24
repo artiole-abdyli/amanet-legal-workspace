@@ -92,7 +92,7 @@ async function MatterView({
 
       <div className="flex flex-wrap items-start justify-between gap-5">
         <div className="flex min-w-0 flex-1 basis-[420px] flex-col gap-2.5">
-          <h1 className="font-serif text-3xl leading-tight font-semibold tracking-[-0.015em]">
+          <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-[-0.015em]">
             {matter.title}
           </h1>
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-muted">

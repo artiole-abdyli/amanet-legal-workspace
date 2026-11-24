@@ -86,7 +86,7 @@ export function SearchDialog({ items }: { items: SearchItem[] }) {
         aria-hidden="true"
         tabIndex={-1}
         onClick={() => setOpen(false)}
-        className="fixed inset-0 z-40 cursor-default bg-[rgb(10_18_15/0.48)]"
+        className="fixed inset-0 z-40 cursor-default bg-[rgb(10_18_32/0.45)]"
       />
       <div
         role="dialog"

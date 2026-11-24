@@ -16,7 +16,7 @@ export default function LoginPage() {
         <div className="flex flex-col items-center gap-3 text-center">
           <FirmMark className="size-12 rounded-xl text-base" />
           <div>
-            <h1 className="font-serif text-[28px] leading-tight font-semibold tracking-[-0.015em]">
+            <h1 className="font-serif text-[24px] leading-tight font-semibold tracking-[-0.015em]">
               Harlow &amp; Vance
             </h1>
             <p className="mt-1 text-muted">

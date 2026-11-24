@@ -2,15 +2,12 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { Icon, type IconName } from "@/components/icons";
-import { buttonClasses } from "@/components/ui/button";
 import {
   Card,
   CardHeader,
-  EmptyState,
   PageHeader,
-  SectionTitle,
 } from "@/components/ui/card";
-import { CalendarTile, DueDate } from "@/components/ui/meta";
+import { DueDate } from "@/components/ui/meta";
 import {
   Skeleton,
   SkeletonCard,
@@ -19,15 +16,27 @@ import {
 import { Timeline } from "@/components/ui/timeline";
 import { cn } from "@/lib/cn";
 import {
+  daysUntil,
   documentTitle,
   firstName,
   formatDate,
+  formatShortDate,
   formatWeekday,
 } from "@/lib/format";
 import { requireAdmin } from "@/lib/auth";
-import { getDashboard } from "@/lib/queries";
+import {
+  ATTENTION_PREVIEW,
+  getDashboard,
+  type AttentionFocus,
+} from "@/lib/queries";
 
 export const metadata = { title: "Dashboard" };
+
+type Search = { [key: string]: string | string[] | undefined };
+
+function one(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 function greeting(date: Date) {
   const hour = date.getHours();
@@ -36,200 +45,375 @@ function greeting(date: Date) {
   return "Good evening";
 }
 
+/** "2 hours ago", "3 days ago": how long something has been waiting. */
+function waitingFor(date: Date | null) {
+  if (!date) return "";
+  const minutes = Math.max(0, Math.round((Date.now() - date.getTime()) / 60_000));
+  if (minutes < 60) return minutes <= 1 ? "just now" : `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} h ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+// --- Summary tiles ------------------------------------------------------------
+
 function Tile({
+  icon,
   value,
   label,
   href,
-  highlight,
+  tone = "neutral",
 }: {
+  icon: IconName;
   value: number;
   label: string;
   href: string;
-  highlight?: boolean;
+  tone?: "neutral" | "accent" | "warn";
 }) {
+  const active = value > 0 && tone !== "neutral";
   return (
     <Link
       href={href}
-      className="flex flex-col gap-1 rounded-card border border-line bg-surface p-4 transition-colors hover:border-line-strong"
+      scroll={false}
+      className="group flex items-center gap-3 rounded-card border border-line bg-surface px-4 py-3 transition-colors hover:border-line-strong"
     >
       <span
         className={cn(
-          "font-serif text-3xl leading-none font-semibold tabular",
-          highlight && "text-accent",
+          "grid size-9 shrink-0 place-items-center rounded-lg",
+          active && tone === "accent" && "bg-accent-soft text-accent",
+          active && tone === "warn" && "bg-warn-bg text-warn",
+          !active && "bg-surface-2 text-muted",
         )}
       >
-        {value}
+        <Icon name={icon} className="size-[18px]" />
       </span>
-      <span className="text-[13px] text-muted">{label}</span>
+      <span className="min-w-0">
+        <span className="block text-xl leading-tight font-semibold tabular">
+          {value}
+        </span>
+        <span className="block truncate text-[12.5px] text-muted">{label}</span>
+      </span>
     </Link>
   );
 }
 
-type AttentionItem = {
+// --- Needs your attention -------------------------------------------------------
+
+type Row = {
   key: string;
-  icon: IconName;
-  tone: "info" | "warn" | "danger";
   title: string;
-  detail: string;
+  meta: string;
   href: string;
-  action: string;
+  status: { text: string; tone: "late" | "soon" | "normal" };
 };
 
-const ATTENTION_TONES = {
-  info: "bg-info-bg text-info",
-  warn: "bg-warn-bg text-warn",
-  danger: "bg-danger-bg text-danger",
+const TABS: {
+  focus: AttentionFocus;
+  label: string;
+  icon: IconName;
+  tone: string;
+}[] = [
+  { focus: "review", label: "To review", icon: "upload", tone: "bg-info-bg text-info" },
+  { focus: "signing", label: "Signing in progress", icon: "pen", tone: "bg-warn-bg text-warn" },
+  { focus: "overdue", label: "Overdue tasks", icon: "alert", tone: "bg-danger-bg text-danger" },
+];
+
+const EMPTY: Record<AttentionFocus, string> = {
+  review: "No client uploads are waiting for review.",
+  signing: "Nobody is part-way through signing.",
+  overdue: "No task is past its due date.",
 };
 
-async function DashboardContent() {
+function AttentionList({
+  focus,
+  rows,
+  total,
+  expanded,
+}: {
+  focus: AttentionFocus;
+  rows: Row[];
+  total: number;
+  expanded: boolean;
+}) {
+  const tab = TABS.find((t) => t.focus === focus)!;
+
+  if (rows.length === 0) {
+    return (
+      <p className="flex items-center gap-2 rounded-lg bg-bg px-4 py-6 text-muted">
+        <Icon name="check" className="size-4 text-ok" />
+        {EMPTY[focus]}
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <ul className="-mx-2 flex flex-col">
+        {rows.map((row) => (
+          <li key={row.key}>
+            <Link
+              href={row.href}
+              className="group grid grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-2"
+            >
+              <span
+                aria-hidden="true"
+                className={cn("grid size-7 place-items-center rounded-md", tab.tone)}
+              >
+                <Icon name={tab.icon} className="size-3.5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{row.title}</span>
+                <span className="block truncate text-[12.5px] text-muted">
+                  {row.meta}
+                </span>
+              </span>
+              <span
+                className={cn(
+                  "hidden text-[12.5px] whitespace-nowrap sm:block",
+                  row.status.tone === "late" && "font-medium text-danger",
+                  row.status.tone === "soon" && "font-medium text-warn",
+                  row.status.tone === "normal" && "text-muted",
+                )}
+              >
+                {row.status.text}
+              </span>
+              <Icon
+                name="arrow"
+                className="size-4 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-fg"
+              />
+            </Link>
+          </li>
+        ))}
+      </ul>
+
+      {total > ATTENTION_PREVIEW ? (
+        <Link
+          href={expanded ? `/?focus=${focus}` : `/?focus=${focus}&all=1`}
+          scroll={false}
+          className="self-start text-[13px] font-medium text-accent hover:underline"
+        >
+          {expanded ? "Show fewer" : `Show all ${total}`}
+        </Link>
+      ) : null}
+    </>
+  );
+}
+
+// --- Page -----------------------------------------------------------------------
+
+async function DashboardContent({ searchParams }: { searchParams: Promise<Search> }) {
+  const params = await searchParams;
   const user = await requireAdmin();
-  const data = await getDashboard();
+
+  const requested = one(params.focus) as AttentionFocus | undefined;
+  const wantsAll = one(params.all) === "1";
+  const data = await getDashboard({
+    expand: wantsAll && requested ? requested : undefined,
+  });
   const now = new Date();
 
-  const attention: AttentionItem[] = [
-    ...data.submittedRequests.map((request) => ({
-      key: `request-${request.id}`,
-      icon: "upload" as const,
-      tone: "info" as const,
-      title: `Review ${request.title.toLowerCase()} from ${request.matter.client.name}`,
-      detail: `${request.matter.reference} · uploaded through a secure link`,
+  const counts: Record<AttentionFocus, number> = {
+    review: data.counts.review,
+    signing: data.counts.signing,
+    overdue: data.counts.overdue,
+  };
+  const totalAttention = counts.review + counts.signing + counts.overdue;
+
+  // Open on what was asked for, else the first list with something in it.
+  const focus: AttentionFocus =
+    requested && TABS.some((t) => t.focus === requested)
+      ? requested
+      : (TABS.find((t) => counts[t.focus] > 0)?.focus ?? "review");
+
+  const rows: Record<AttentionFocus, Row[]> = {
+    review: data.submittedRequests.map((request) => ({
+      key: request.id,
+      title: `${request.title} from ${request.matter.client.name}`,
+      meta: `${request.matter.reference} · uploaded through a secure link`,
       href: `/matters/${request.matter.id}?tab=requests`,
-      action: "Review",
+      status: { text: waitingFor(request.submittedAt), tone: "normal" },
     })),
-    ...data.liveSignatures.map((signature) => ({
-      key: `signature-${signature.id}`,
-      icon: "pen" as const,
-      tone: "warn" as const,
-      title: `${signature.signerName} ${
-        signature.status === "STARTED" ? "started signing" : "opened"
-      } ${documentTitle(signature.documentVersion.document.name)} but hasn't finished`,
-      detail: `${signature.matter.reference} · link expires ${formatDate(signature.expiresAt)}`,
-      href: `/matters/${signature.matter.id}?tab=signatures`,
-      action: "View",
-    })),
-    ...data.overdueTasks.map((task) => ({
-      key: `task-${task.id}`,
-      icon: "alert" as const,
-      tone: "danger" as const,
-      title: `Overdue: ${task.title}`,
-      detail: `${task.matter.reference} · was due ${formatDate(task.dueDate)}`,
-      href: `/matters/${task.matter.id}?tab=tasks`,
-      action: "Open",
-    })),
-  ];
+    signing: data.liveSignatures.map((signature) => {
+      const days = daysUntil(signature.expiresAt, now);
+      return {
+        key: signature.id,
+        title: `${signature.signerName} · ${documentTitle(
+          signature.documentVersion.document.name,
+        )}`,
+        meta: `${signature.matter.reference} · ${
+          signature.status === "STARTED" ? "started signing" : "opened, not signed"
+        }`,
+        href: `/matters/${signature.matter.id}?tab=signatures`,
+        status: {
+          text:
+            days <= 0
+              ? "Expires today"
+              : `Expires in ${days} day${days === 1 ? "" : "s"}`,
+          tone: days <= 3 ? "soon" : "normal",
+        },
+      };
+    }),
+    overdue: data.overdueTasks.map((task) => {
+      const late = task.dueDate ? -daysUntil(task.dueDate, now) : 0;
+      return {
+        key: task.id,
+        title: task.title,
+        meta: `${task.matter.reference} · was due ${formatDate(task.dueDate)}`,
+        href: `/matters/${task.matter.id}?tab=tasks`,
+        status: {
+          text: late <= 0 ? "Due today" : `${late} day${late === 1 ? "" : "s"} late`,
+          tone: "late",
+        },
+      };
+    }),
+  };
+
+  const moreKeyDates = data.counts.keyDates - data.keyDates.length;
 
   return (
     <>
       <PageHeader
         title={`${greeting(now)}, ${firstName(user.name)}`}
-        description={`${formatWeekday(now)}, ${formatDate(now)}`}
+        description={`${formatWeekday(now)}, ${formatDate(now)}${
+          totalAttention > 0
+            ? ` · ${totalAttention} thing${totalAttention === 1 ? "" : "s"} need${
+                totalAttention === 1 ? "s" : ""
+              } your attention`
+            : " · nothing needs your attention"
+        }`}
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Tile icon="folder" value={data.counts.openMatters} label="Open matters" href="/matters" />
         <Tile
-          value={data.counts.openMatters}
-          label="Open matters"
-          href="/matters"
-        />
-        <Tile
+          icon="pen"
           value={data.counts.awaitingSignature}
           label="Awaiting signature"
-          href="/matters"
-          highlight={data.counts.awaitingSignature > 0}
+          href="/?focus=signing"
+          tone="accent"
         />
         <Tile
+          icon="upload"
           value={data.counts.uploadsToReview}
           label="Uploads to review"
-          href="/matters"
-          highlight={data.counts.uploadsToReview > 0}
+          href="/?focus=review"
+          tone="accent"
         />
         <Tile
-          value={data.counts.keyDates}
-          label="Key dates in 14 days"
-          href="/matters"
+          icon="clock"
+          value={data.counts.overdue}
+          label="Overdue tasks"
+          href="/?focus=overdue"
+          tone="warn"
         />
       </div>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[1.45fr_minmax(0,1fr)]">
-        <Card>
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <Card className="gap-3">
+          <CardHeader title="Needs your attention" />
+
+          <div
+            role="tablist"
+            aria-label="Attention lists"
+            className="flex gap-1 overflow-x-auto rounded-lg bg-surface-2 p-1"
+          >
+            {TABS.map((tab) => {
+              const active = tab.focus === focus;
+              return (
+                <Link
+                  key={tab.focus}
+                  role="tab"
+                  aria-selected={active}
+                  href={`/?focus=${tab.focus}`}
+                  scroll={false}
+                  className={cn(
+                    "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors",
+                    active
+                      ? "bg-surface text-fg shadow-sm"
+                      : "text-muted hover:text-fg",
+                  )}
+                >
+                  {tab.label}
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 text-[11.5px] tabular",
+                      counts[tab.focus] > 0 && tab.focus === "overdue"
+                        ? "bg-danger-bg text-danger"
+                        : counts[tab.focus] > 0
+                          ? "bg-accent-soft text-accent"
+                          : "bg-surface-2 text-muted",
+                    )}
+                  >
+                    {counts[tab.focus]}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+
+          <AttentionList
+            focus={focus}
+            rows={rows[focus]}
+            total={counts[focus]}
+            expanded={wantsAll && requested === focus}
+          />
+        </Card>
+
+        <Card className="gap-3">
           <CardHeader
-            title="Needs your attention"
+            title="Next 14 days"
             aside={
-              <span className="text-muted">
-                {attention.length} item{attention.length === 1 ? "" : "s"}
+              <span className="text-[12.5px] text-muted">
+                {data.counts.keyDates} key date{data.counts.keyDates === 1 ? "" : "s"}
               </span>
             }
           />
-          {attention.length === 0 ? (
-            <EmptyState
-              icon="check"
-              title="You're all caught up"
-              description="New uploads and signature activity will show here."
-            />
+          {data.keyDates.length === 0 ? (
+            <p className="rounded-lg bg-bg px-4 py-6 text-muted">
+              Nothing due in the next two weeks.
+            </p>
           ) : (
-            <ul className="flex flex-col">
-              {attention.map((item) => (
-                <li
-                  key={item.key}
-                  className="flex items-center gap-3 border-t border-line py-3 first:border-t-0 first:pt-0"
-                >
-                  <span
-                    className={cn(
-                      "grid size-8 shrink-0 place-items-center rounded-lg",
-                      ATTENTION_TONES[item.tone],
-                    )}
-                  >
-                    <Icon name={item.icon} className="size-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    {item.title}
-                    <small className="block text-muted">{item.detail}</small>
-                  </span>
+            <ul className="-mx-2 flex flex-col">
+              {data.keyDates.map((keyDate) => (
+                <li key={keyDate.id}>
                   <Link
-                    href={item.href}
-                    className={buttonClasses("default", "sm")}
+                    href={`/matters/${keyDate.matter.id}`}
+                    className="grid grid-cols-[52px_minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-surface-2"
                   >
-                    {item.action}
+                    <span className="text-center leading-tight">
+                      <span className="block text-[11px] font-medium text-muted uppercase">
+                        {formatWeekday(keyDate.date).slice(0, 3)}
+                      </span>
+                      <span className="block text-[13px] font-semibold tabular">
+                        {formatShortDate(keyDate.date)}
+                      </span>
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{keyDate.label}</span>
+                      <span className="block truncate text-[12.5px] text-muted">
+                        {keyDate.matter.title}
+                      </span>
+                    </span>
+                    <DueDate date={keyDate.date} />
                   </Link>
                 </li>
               ))}
             </ul>
           )}
-        </Card>
-
-        <Card>
-          <SectionTitle>Upcoming key dates</SectionTitle>
-          {data.keyDates.length === 0 ? (
-            <p className="text-muted">Nothing in the next 14 days.</p>
-          ) : (
-            <ul className="flex flex-col">
-              {data.keyDates.map((keyDate) => (
-                <li
-                  key={keyDate.id}
-                  className="flex items-center gap-3.5 border-t border-line py-2.5 first:border-t-0 first:pt-0"
-                >
-                  <CalendarTile date={keyDate.date} />
-                  <span className="min-w-0 flex-1">
-                    <Link
-                      href={`/matters/${keyDate.matter.id}`}
-                      className="font-medium text-fg underline-offset-2 hover:underline"
-                    >
-                      {keyDate.label}
-                    </Link>
-                    <small className="block truncate text-muted">
-                      {keyDate.matter.title}
-                    </small>
-                  </span>
-                  <DueDate date={keyDate.date} />
-                </li>
-              ))}
-            </ul>
-          )}
+          {moreKeyDates > 0 ? (
+            <Link
+              href="/matters?sort=deadline"
+              className="self-start text-[13px] font-medium text-accent hover:underline"
+            >
+              {moreKeyDates} more in the next 14 days
+            </Link>
+          ) : null}
         </Card>
       </div>
 
-      <Card>
-        <SectionTitle>Recent activity across matters</SectionTitle>
+      <Card className="gap-3">
+        <CardHeader title="Recent activity" />
         <Timeline
           entries={data.recentActivity.map((event) => ({
             id: event.id,
@@ -254,19 +438,23 @@ function DashboardFallback() {
         <Skeleton className="h-4 w-40" />
       </div>
       <SkeletonTiles />
-      <div className="grid items-start gap-5 lg:grid-cols-[1.45fr_minmax(0,1fr)]">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <SkeletonCard rows={5} />
         <SkeletonCard rows={4} />
-        <SkeletonCard rows={3} />
       </div>
       <SkeletonCard rows={4} />
     </>
   );
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Search>;
+}) {
   return (
     <Suspense fallback={<DashboardFallback />}>
-      <DashboardContent />
+      <DashboardContent searchParams={searchParams} />
     </Suspense>
   );
 }

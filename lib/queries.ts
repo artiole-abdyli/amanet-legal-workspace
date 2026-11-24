@@ -113,16 +113,52 @@ export async function getUnreadNotificationCount() {
 
 // --- Dashboard --------------------------------------------------------------
 
-export async function getDashboard() {
+export type AttentionFocus = "review" | "signing" | "overdue";
+
+/** How many rows each attention list shows before "Show all". */
+export const ATTENTION_PREVIEW = 5;
+/** How many key dates the side panel lists before pointing at the rest. */
+export const KEY_DATES_PREVIEW = 6;
+
+/**
+ * Everything the dashboard shows, sized for a busy firm.
+ *
+ * Each list is counted in full but only a handful of rows are fetched, so the
+ * page stays the same size whether ten things need attention or three hundred.
+ * The one list the Admin has asked to expand comes back whole.
+ */
+export async function getDashboard(
+  options: { expand?: AttentionFocus } = {},
+) {
   await requireAdmin();
   const horizon = new Date();
   horizon.setDate(horizon.getDate() + 14);
   const now = new Date();
 
+  const take = (focus: AttentionFocus) =>
+    options.expand === focus ? undefined : ATTENTION_PREVIEW;
+
+  const signingWhere = {
+    status: { in: ["VIEWED" as const, "STARTED" as const] },
+    expiresAt: { gt: now },
+  };
+  const overdueWhere = {
+    completedAt: null,
+    dueDate: { lt: now },
+    matter: { archivedAt: null },
+  };
+  const keyDateWhere = {
+    date: { gte: now, lte: horizon },
+    matter: { archivedAt: null, status: { not: "CLOSED" as const } },
+  };
+
   const [
     openMatters,
     awaitingSignature,
     uploadsToReview,
+    signingCount,
+    overdueCount,
+    keyDateCount,
     keyDates,
     submittedRequests,
     liveSignatures,
@@ -134,17 +170,19 @@ export async function getDashboard() {
     }),
     prisma.signatureRequest.count({ where: liveSignatureWhere() }),
     prisma.documentRequest.count({ where: { status: "SUBMITTED" } }),
+    prisma.signatureRequest.count({ where: signingWhere }),
+    prisma.task.count({ where: overdueWhere }),
+    prisma.matterKeyDate.count({ where: keyDateWhere }),
     prisma.matterKeyDate.findMany({
-      where: {
-        date: { gte: now, lte: horizon },
-        matter: { archivedAt: null, status: { not: "CLOSED" } },
-      },
+      where: keyDateWhere,
       orderBy: { date: "asc" },
+      take: KEY_DATES_PREVIEW,
       include: { matter: { select: { id: true, title: true, reference: true } } },
     }),
     prisma.documentRequest.findMany({
       where: { status: "SUBMITTED" },
       orderBy: { submittedAt: "desc" },
+      take: take("review"),
       include: {
         matter: {
           select: {
@@ -156,11 +194,9 @@ export async function getDashboard() {
       },
     }),
     prisma.signatureRequest.findMany({
-      where: {
-        status: { in: ["VIEWED", "STARTED"] },
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { sentAt: "desc" },
+      where: signingWhere,
+      orderBy: { expiresAt: "asc" },
+      take: take("signing"),
       include: {
         matter: { select: { id: true, reference: true } },
         documentVersion: {
@@ -169,12 +205,9 @@ export async function getDashboard() {
       },
     }),
     prisma.task.findMany({
-      where: {
-        completedAt: null,
-        dueDate: { lt: now },
-        matter: { archivedAt: null },
-      },
+      where: overdueWhere,
       orderBy: { dueDate: "asc" },
+      take: take("overdue"),
       include: { matter: { select: { id: true, reference: true } } },
     }),
     prisma.activityEvent.findMany({
@@ -189,7 +222,10 @@ export async function getDashboard() {
       openMatters,
       awaitingSignature,
       uploadsToReview,
-      keyDates: keyDates.length,
+      keyDates: keyDateCount,
+      review: uploadsToReview,
+      signing: signingCount,
+      overdue: overdueCount,
     },
     keyDates,
     submittedRequests,
@@ -510,26 +546,92 @@ export async function getClientOptions() {
 
 // --- Email ------------------------------------------------------------------
 
-export const EMAILS_PER_PAGE = 10;
+export const EMAILS_PER_PAGE = 25;
 
 /**
- * The outbox.
- *
- * Every message the workspace sends is a row here, so the whole email side of
- * the brief can be read back without an SMTP server. In production the same
- * rows are the delivery log.
+ * What a message was for. The outbox has no column for it, because every
+ * message the workspace sends starts with one of these fixed subject lines, and
+ * a `startsWith` on an indexed table is all the filter needs.
  */
-export async function getEmails(page = 1) {
-  await requireAdmin();
+export const EMAIL_KINDS = {
+  sign: { label: "Signature request", prefixes: ["Please sign: "] },
+  reminder: {
+    label: "Reminder",
+    prefixes: ["A reminder to sign: ", "A reminder about "],
+  },
+  upload: { label: "Document request", prefixes: ["We need a document: "] },
+  correction: { label: "New copy needed", prefixes: ["A new copy is needed: "] },
+  signed: { label: "Signed copy", prefixes: ["Your signed copy: "] },
+} as const;
 
-  const total = await prisma.emailMessage.count();
+export type EmailKind = keyof typeof EMAIL_KINDS;
+
+export function emailKind(subject: string): EmailKind | null {
+  for (const [kind, { prefixes }] of Object.entries(EMAIL_KINDS)) {
+    if (prefixes.some((prefix) => subject.startsWith(prefix))) {
+      return kind as EmailKind;
+    }
+  }
+  return null;
+}
+
+export type EmailFilters = {
+  query?: string;
+  status?: "SENT" | "QUEUED" | "FAILED";
+  kind?: EmailKind;
+  page?: number;
+};
+
+/**
+ * One page of the outbox, filtered, newest first.
+ *
+ * Built for volume: a week of a busy firm is thousands of rows, so the list
+ * carries only what a row shows, the body is loaded for the one message that
+ * is open, and search covers the two things someone chasing a message knows —
+ * who it went to and what it was about.
+ */
+export async function getEmails(filters: EmailFilters = {}) {
+  await requireAdmin();
+  const { query, status, kind, page = 1 } = filters;
+
+  const where = {
+    ...(status ? { status } : {}),
+    AND: [
+      query
+        ? {
+            OR: [
+              { to: { contains: query, mode: "insensitive" as const } },
+              { subject: { contains: query, mode: "insensitive" as const } },
+            ],
+          }
+        : {},
+      kind && EMAIL_KINDS[kind]
+        ? {
+            OR: EMAIL_KINDS[kind].prefixes.map((prefix) => ({
+              subject: { startsWith: prefix },
+            })),
+          }
+        : {},
+    ],
+  };
+
+  const total = await prisma.emailMessage.count({ where });
   const pageCount = Math.max(1, Math.ceil(total / EMAILS_PER_PAGE));
   const current = Math.min(pageCount, Math.max(1, Math.trunc(page) || 1));
 
   const emails = await prisma.emailMessage.findMany({
+    where,
     orderBy: { createdAt: "desc" },
     skip: (current - 1) * EMAILS_PER_PAGE,
     take: EMAILS_PER_PAGE,
+    select: {
+      id: true,
+      to: true,
+      subject: true,
+      status: true,
+      sentAt: true,
+      createdAt: true,
+    },
   });
 
   return {
@@ -538,5 +640,32 @@ export async function getEmails(page = 1) {
     page: current,
     perPage: EMAILS_PER_PAGE,
     pageCount,
+  };
+}
+
+/** The full message, for the reading pane. */
+export async function getEmail(id: string) {
+  await requireAdmin();
+  return prisma.emailMessage.findUnique({ where: { id } });
+}
+
+/** Totals for the strip above the list: the whole outbox, and the last week. */
+export async function getEmailStats() {
+  await requireAdmin();
+
+  const weekAgo = new Date(Date.now() - 7 * 86_400_000);
+  const [byStatus, lastWeek] = await Promise.all([
+    prisma.emailMessage.groupBy({ by: ["status"], _count: { _all: true } }),
+    prisma.emailMessage.count({ where: { createdAt: { gte: weekAgo } } }),
+  ]);
+
+  const count = (status: string) =>
+    byStatus.find((row) => row.status === status)?._count._all ?? 0;
+
+  return {
+    sent: count("SENT"),
+    queued: count("QUEUED"),
+    failed: count("FAILED"),
+    lastWeek,
   };
 }

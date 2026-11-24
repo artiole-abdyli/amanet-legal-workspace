@@ -95,7 +95,7 @@ export function ClientIntro({
       <p className="text-xs font-semibold tracking-[0.08em] text-accent uppercase">
         {eyebrow}
       </p>
-      <h1 className="font-serif text-[30px] leading-tight font-semibold tracking-[-0.015em]">
+      <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-[-0.015em]">
         {title}
       </h1>
       {children ? (

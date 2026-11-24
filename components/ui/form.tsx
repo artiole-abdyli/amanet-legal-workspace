@@ -31,7 +31,7 @@ export function FormPage({
       </Link>
 
       <div>
-        <h1 className="font-serif text-3xl leading-tight font-semibold tracking-[-0.015em]">
+        <h1 className="font-serif text-[26px] leading-tight font-semibold tracking-[-0.015em]">
           {title}
         </h1>
         {description ? <p className="mt-1 text-muted">{description}</p> : null}

@@ -26,24 +26,23 @@ const LINK_PATTERN = {
  * their inbox. Nothing is read out of the database: the token only ever exists
  * in the message.
  *
- * Messages are listed newest first, and the seeded ones carry no link, so this
- * takes the first link of the right kind rather than assuming it is in the
- * very first message.
+ * The outbox is filtered to the matching type of message, newest first, and
+ * the reading pane opens on the first one, so the link is read from there.
  */
 export async function latestLink(
   page: Page,
   kind: "sign" | "upload",
 ): Promise<string> {
-  await page.goto("/emails");
+  await page.goto(`/emails?kind=${kind}`);
 
-  const bodies = await page.locator("pre").allInnerTexts();
+  const reader = page.locator("article").first();
+  await expect(reader).toBeVisible();
+  const body = await reader.innerText();
 
-  for (const body of bodies) {
-    const match = LINK_PATTERN[kind].exec(body);
-    if (match) return match[0];
-  }
+  const match = LINK_PATTERN[kind].exec(body);
+  if (match) return match[0];
 
-  throw new Error(`no ${kind} link in any of the ${bodies.length} messages`);
+  throw new Error(`no ${kind} link in the newest ${kind} message`);
 }
 
 /** Draws a short stroke across the signature pad. */

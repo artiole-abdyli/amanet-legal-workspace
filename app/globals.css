@@ -13,68 +13,68 @@
 */
 
 :root {
-  --bg: #f1f4f2;
+  --bg: #f5f8fc;
   --surface: #ffffff;
-  --surface-2: #e8edea;
-  --line: #d4dcd8;
-  --line-strong: #b6c2bd;
+  --surface-2: #edf2f9;
+  --line: #dde5f0;
+  --line-strong: #bfcde0;
 
-  --fg: #13201a;
-  --muted: #55645e;
-  --faint: #5f6d66;
+  --fg: #0f1b2d;
+  --muted: #4f5e75;
+  --faint: #5a6880;
 
-  --accent: #1d4e7c;
-  --accent-hover: #163c60;
+  --accent: #1f5fcc;
+  --accent-hover: #184ca3;
   --accent-fg: #ffffff;
-  --accent-soft: #dde9f3;
+  --accent-soft: #e4eefc;
 
-  --ok: #1c6a3a;
-  --ok-bg: #dcefe2;
-  --info: #4a3f9e;
-  --info-bg: #e5e2f6;
-  --warn: #8c5000;
-  --warn-bg: #f8ead2;
-  --danger: #ae271c;
-  --danger-bg: #f9e2df;
-  --neutral: #4b5752;
-  --neutral-bg: #e5eae7;
+  --ok: #17703f;
+  --ok-bg: #dff3e7;
+  --info: #1f5fcc;
+  --info-bg: #e4eefc;
+  --warn: #8a4f00;
+  --warn-bg: #fbedd5;
+  --danger: #b42318;
+  --danger-bg: #fde7e5;
+  --neutral: #4b5970;
+  --neutral-bg: #e9eef5;
 
   /* The sheet a document is rendered on, which stays paper-like in both themes. */
-  --paper: #fffefb;
-  --paper-ink: #1e2622;
-  --paper-line: #e2dfd7;
+  --paper: #ffffff;
+  --paper-ink: #1a2433;
+  --paper-line: #e1e6ee;
   --signature-ink: #1b2b4f;
 
-  --shadow-card: 0 1px 2px rgb(19 32 26 / 0.06), 0 10px 30px rgb(19 32 26 / 0.1);
+  --shadow-card: 0 1px 2px rgb(15 27 45 / 0.05), 0 8px 24px rgb(15 27 45 / 0.07);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0e1412;
-    --surface: #151d1a;
-    --surface-2: #1c2622;
-    --line: #28342f;
-    --line-strong: #3a4842;
+    --bg: #0b1220;
+    --surface: #111a2b;
+    --surface-2: #172338;
+    --line: #22314a;
+    --line-strong: #34476a;
 
-    --fg: #e4ece8;
-    --muted: #97a7a0;
-    --faint: #8a9a92;
+    --fg: #e6edf7;
+    --muted: #9cadc6;
+    --faint: #8d9eb8;
 
-    --accent: #7cb2e0;
-    --accent-hover: #96c3ea;
-    --accent-fg: #091420;
-    --accent-soft: #15314a;
+    --accent: #6ea8ff;
+    --accent-hover: #8dbbff;
+    --accent-fg: #06142b;
+    --accent-soft: #142a4d;
 
-    --ok: #7acb94;
-    --ok-bg: #12301d;
-    --info: #a79bf0;
-    --info-bg: #241f47;
-    --warn: #edb45c;
-    --warn-bg: #382810;
-    --danger: #ee8a80;
+    --ok: #74d29a;
+    --ok-bg: #0f2e1d;
+    --info: #8dbbff;
+    --info-bg: #142a4d;
+    --warn: #f0b75e;
+    --warn-bg: #352610;
+    --danger: #f08a80;
     --danger-bg: #3a1714;
-    --neutral: #b3bfba;
-    --neutral-bg: #222c28;
+    --neutral: #b4c1d6;
+    --neutral-bg: #1c2840;
 
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.35);
 
@@ -83,31 +83,31 @@
 }
 
 :root[data-theme="dark"] {
-  --bg: #0e1412;
-  --surface: #151d1a;
-  --surface-2: #1c2622;
-  --line: #28342f;
-  --line-strong: #3a4842;
+  --bg: #0b1220;
+  --surface: #111a2b;
+  --surface-2: #172338;
+  --line: #22314a;
+  --line-strong: #34476a;
 
-  --fg: #e4ece8;
-  --muted: #97a7a0;
-  --faint: #8a9a92;
+  --fg: #e6edf7;
+  --muted: #9cadc6;
+  --faint: #8d9eb8;
 
-  --accent: #7cb2e0;
-  --accent-hover: #96c3ea;
-  --accent-fg: #091420;
-  --accent-soft: #15314a;
+  --accent: #6ea8ff;
+  --accent-hover: #8dbbff;
+  --accent-fg: #06142b;
+  --accent-soft: #142a4d;
 
-  --ok: #7acb94;
-  --ok-bg: #12301d;
-  --info: #a79bf0;
-  --info-bg: #241f47;
-  --warn: #edb45c;
-  --warn-bg: #382810;
-  --danger: #ee8a80;
+  --ok: #74d29a;
+  --ok-bg: #0f2e1d;
+  --info: #8dbbff;
+  --info-bg: #142a4d;
+  --warn: #f0b75e;
+  --warn-bg: #352610;
+  --danger: #f08a80;
   --danger-bg: #3a1714;
-  --neutral: #b3bfba;
-  --neutral-bg: #222c28;
+  --neutral: #b4c1d6;
+  --neutral-bg: #1c2840;
 
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px rgb(0 0 0 / 0.35);
 
@@ -161,6 +161,10 @@
 body {
   background: var(--bg);
   color: var(--fg);
+  /* The interface is dense by nature: lists, tabs, forms. 14px reads well at
+     that density; the browser's 16px default made every control feel oversized. */
+  font-size: 14px;
+  line-height: 1.5;
   font-family: var(--font-plex-sans), ui-sans-serif, system-ui, sans-serif;
 }
 

@@ -207,8 +207,8 @@ export function SignaturePad({
             aria-label="Signature pad. Draw with your finger or mouse, or switch to Type."
             className="size-full touch-none rounded-lg"
           />
-          <span className="pointer-events-none absolute inset-x-6 bottom-[42px] border-t border-[#b8bdb9]" />
-          <span className="pointer-events-none absolute bottom-4 left-6 text-xs text-[#6b716d]">
+          <span className="pointer-events-none absolute inset-x-6 bottom-[42px] border-t border-[#bcc6d4]" />
+          <span className="pointer-events-none absolute bottom-4 left-6 text-xs text-[#5f6b7d]">
             Sign above the line
           </span>
           <button
