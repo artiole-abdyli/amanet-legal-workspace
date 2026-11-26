@@ -398,3 +398,109 @@ export async function deleteKeyDate(keyDateId: string) {
 
   revalidatePath(`/matters/${keyDate.matterId}`);
 }
+
+async function taskMatter(taskId: string) {
+  const task = await prisma.task.findUniqueOrThrow({
+    where: { id: taskId },
+    select: { matterId: true, title: true },
+  });
+  await assertMatterWritable(task.matterId);
+  return task;
+}
+
+async function noteMatter(noteId: string) {
+  const note = await prisma.note.findUniqueOrThrow({
+    where: { id: noteId },
+    select: { matterId: true },
+  });
+  await assertMatterWritable(note.matterId);
+  return note;
+}
+
+export async function updateTask(taskId: string, formData: FormData) {
+  const { actor } = await requireAdminActor();
+  const check = createChecker(formData);
+  const title = check.text("title", { required: "-", max: LIMITS.title, label: "Task" });
+  const dueDate = check.date("dueDate");
+  if (!check.ok) return;
+
+  const task = await taskMatter(taskId);
+
+  await prisma.$transaction([
+    prisma.task.update({ where: { id: taskId }, data: { title, dueDate } }),
+    prisma.activityEvent.create({
+      data: {
+        matterId: task.matterId,
+        type: "TASK",
+        summary:
+          task.title === title ? `Task updated: ${title}` : `Task renamed: ${task.title} → ${title}`,
+        ...actor,
+      },
+    }),
+  ]);
+  revalidatePath(`/matters/${task.matterId}`);
+}
+
+/**
+ * Tasks are working items, not records, so they can be removed. The activity
+ * log keeps a line saying it happened.
+ */
+export async function deleteTask(taskId: string) {
+  const { actor } = await requireAdminActor();
+  const task = await taskMatter(taskId);
+
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.task.deleteMany({ where: { id: taskId } });
+    if (count !== 1) return;
+    await tx.activityEvent.create({
+      data: {
+        matterId: task.matterId,
+        type: "TASK",
+        summary: `Task deleted: ${task.title}`,
+        ...actor,
+      },
+    });
+  });
+  revalidatePath(`/matters/${task.matterId}`);
+}
+
+export async function updateNote(noteId: string, formData: FormData) {
+  const { actor } = await requireAdminActor();
+  const check = createChecker(formData);
+  const body = check.text("body", { required: "-", max: LIMITS.note, label: "Note" });
+  if (!check.ok) return;
+
+  const note = await noteMatter(noteId);
+
+  await prisma.$transaction([
+    prisma.note.update({ where: { id: noteId }, data: { body } }),
+    prisma.activityEvent.create({
+      data: {
+        matterId: note.matterId,
+        type: "NOTE",
+        summary: "Internal note edited",
+        ...actor,
+      },
+    }),
+  ]);
+  revalidatePath(`/matters/${note.matterId}`);
+}
+
+export async function deleteNote(noteId: string) {
+  const { actor } = await requireAdminActor();
+  const note = await noteMatter(noteId);
+
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.note.deleteMany({ where: { id: noteId } });
+    if (count !== 1) return;
+    await tx.activityEvent.create({
+      data: {
+        matterId: note.matterId,
+        type: "NOTE",
+        summary: "Internal note deleted",
+        ...actor,
+      },
+    });
+  });
+  revalidatePath(`/matters/${note.matterId}`);
+}

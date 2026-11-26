@@ -41,7 +41,7 @@ export async function signAsFirm(
   }
 
   const version = await prisma.documentVersion.findFirst({
-    where: { documentId, document: { matterId } },
+    where: { documentId, document: { matterId, archivedAt: null } },
     orderBy: { versionNo: "desc" },
     include: {
       document: {

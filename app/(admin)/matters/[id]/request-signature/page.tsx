@@ -54,7 +54,9 @@ async function RequestSignature({
   ]);
   if (!matter) notFound();
 
-  const contracts = documents.filter((doc) => doc.folder === "CONTRACTS");
+  const contracts = documents.filter(
+    (doc) => doc.folder === "CONTRACTS" && doc.archivedAt === null,
+  );
   const signerName = matter.client.contactName ?? matter.client.name;
 
   return (

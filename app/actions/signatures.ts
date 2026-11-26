@@ -59,7 +59,7 @@ export async function createSignatureRequest(
   if (message.length > LIMITS.message) redirect(`${back}message`);
 
   const version = await prisma.documentVersion.findFirst({
-    where: { documentId, document: { matterId, folder: "CONTRACTS" } },
+    where: { documentId, document: { matterId, folder: "CONTRACTS", archivedAt: null } },
     orderBy: { versionNo: "desc" },
     include: {
       document: {

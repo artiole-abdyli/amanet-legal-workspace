@@ -28,7 +28,7 @@ export function TaskCheckbox({
   return (
     <label
       className={cn(
-        "flex cursor-pointer items-start gap-3 border-t border-line py-2.5 first:border-t-0 first:pt-0",
+        "flex min-w-0 flex-1 cursor-pointer items-start gap-3",
         disabled && "cursor-not-allowed",
       )}
     >

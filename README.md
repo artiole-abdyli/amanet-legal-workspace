@@ -159,8 +159,8 @@ client-facing pages are built mobile-first, because that is where people sign.
 
 ## What is built
 
-**The firm's workspace.** A dashboard of what needs attention, upcoming key
-dates and recent activity; a matters list with URL-driven search, status,
+**The firm's workspace.** A dashboard of what needs attention and the key
+dates of the next 14 days; a matters list with URL-driven search, status,
 priority and sort filters, paged five at a time; client records; and a matter
 page with Overview,
 Documents, Client requests, Signatures, Tasks & notes and Activity. Ctrl-K
@@ -174,10 +174,27 @@ still has its own Activity tab, and the dashboard keeps to what needs action.
 
 **Documents.** Upload, preview and download, with versions kept rather than
 replaced. Uploading a file whose name already exists adds the next version.
+Documents are organised in three folders (Contracts, Client uploads, Signed)
+and can be renamed, moved between Contracts and Client uploads (for instance
+to send a client's file out for signature), and archived. Archiving removes a
+file from the library, search and the signing pickers without deleting a
+single version, and it is refused while the file is out for signature or
+answers an open client request. Signed records cannot be moved or archived.
+Two live files in one folder cannot share a name, checked under the same
+matter lock that uploads take, because the name is what a re-upload versions
+against.
+
+**Tasks and notes.** Tasks have a title and a due date, can be ticked off,
+edited and deleted; internal notes can be edited and deleted. Each change
+writes its own line to the activity log, so a deleted task still leaves a
+trace.
 
 **Client requests.** Ask the client for files, review what arrives, accept it or
 ask for a correction. A correction becomes the next version of the same
-document.
+document. A request can be cancelled with a reason until it is accepted: its
+upload link is revoked in the same transaction, the client sees a "no longer
+active" page, and any file already sent stays in the matter. An upload that
+races the cancellation is refused under the request's row lock.
 
 **Signing.** Send a document version for signature, watch it move through Sent,
 Viewed, Started and Signed, send a reminder, or revoke the link. The client
@@ -250,6 +267,10 @@ npm run db:reset
 npm run test:e2e
 ```
 
+`e2e/organising.spec.ts` cancels a document request and checks that its link
+then shows the "no longer active" page, edits and deletes a task, and renames,
+archives and restores a document.
+
 `e2e/accessibility.spec.ts` runs axe over the login page, every workspace
 page, each tab of a matter and both client pages, and fails on any serious or
 critical violation. It found one: the faint text colour sat at 3.7:1 against
@@ -269,3 +290,10 @@ the signed PDF filed in the Documents tab.
   request, which is right for one server and wrong for several; behind more
   than one instance it wants Redis or the platform's own limiter.
 - Bulk actions, and exporting a matter.
+- Reads are not yet scoped by `firmId`. With one firm that is harmless; before
+  a second firm is added, every query in `lib/queries.ts` needs the firm of
+  the signed-in user in its `where`.
+- Failed emails are recorded with the provider's reason on the Email page, but
+  not retried automatically. A job queue with retries would close that.
+- A signature is placed at a fixed spot on the last page. Choosing
+  where to sign would need a placement step on the PDF.

@@ -18,7 +18,7 @@ async function FirmSign({ params }: { params: Params }) {
   const [user, firm] = await Promise.all([requireAdmin(), getFirm()]);
 
   const document = await prisma.document.findFirst({
-    where: { id: documentId, matterId: id },
+    where: { id: documentId, matterId: id, archivedAt: null },
     include: {
       versions: { orderBy: { versionNo: "desc" }, take: 1 },
       matter: { select: { title: true, reference: true, archivedAt: true } },

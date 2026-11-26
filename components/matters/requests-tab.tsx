@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import {
   acceptDocumentRequest,
+  cancelDocumentRequest,
   requestChanges,
   resendUploadLink,
 } from "@/app/actions/requests";
@@ -10,7 +11,7 @@ import { Badge, requestStatusTone } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Callout, Card, EmptyState } from "@/components/ui/card";
 import { DueDate, VersionTag } from "@/components/ui/meta";
-import { Field, Textarea, ValidatedForm } from "@/components/ui/form";
+import { Field, Input, Textarea, ValidatedForm } from "@/components/ui/form";
 import { LIMITS } from "@/lib/validation";
 import { formatDate, requestStatusLabel } from "@/lib/format";
 import { getMatter, getMatterRequests } from "@/lib/queries";
@@ -20,6 +21,7 @@ const ORDER = {
   CHANGES_REQUESTED: 1,
   PENDING: 2,
   ACCEPTED: 3,
+  CANCELLED: 4,
 } as const;
 
 export async function RequestsTab({ matterId }: { matterId: string }) {
@@ -91,6 +93,14 @@ export async function RequestsTab({ matterId }: { matterId: string }) {
                 </Callout>
               ) : null}
 
+              {request.status === "CANCELLED" ? (
+                <Callout>
+                  <b>Cancelled:</b>{" "}
+                  {(request.cancelReason ?? "No longer needed").replace(/\.$/, "")}.
+                  The upload link no longer works.
+                </Callout>
+              ) : null}
+
               {latest && request.submittedDocument ? (
                 <div>
                   <a
@@ -113,6 +123,8 @@ export async function RequestsTab({ matterId }: { matterId: string }) {
                   Requested {formatDate(request.requestedAt)}
                   {request.status === "ACCEPTED" ? (
                     " · Accepted"
+                  ) : request.status === "CANCELLED" ? (
+                    " · Cancelled"
                   ) : request.dueDate ? (
                     <>
                       {" · "}
@@ -173,6 +185,36 @@ export async function RequestsTab({ matterId }: { matterId: string }) {
                           Resend link
                         </Button>
                       </form>
+                    ) : null}
+
+                    {request.status === "PENDING" ||
+                    request.status === "CHANGES_REQUESTED" ||
+                    request.status === "SUBMITTED" ? (
+                      <details className="relative">
+                        <summary className={buttonClasses("ghost", "sm")}>
+                          <Icon name="ban" className="size-4" />
+                          Cancel request
+                        </summary>
+                        <ValidatedForm
+                          action={cancelDocumentRequest.bind(null, request.id)}
+                          className="absolute right-0 z-10 mt-2 flex w-[min(360px,80vw)] flex-col gap-2 rounded-card border border-line bg-surface p-3 shadow-card"
+                        >
+                          <p className="text-[13px]">
+                            The upload link stops working straight away. Any file
+                            already sent stays in the matter.
+                          </p>
+                          <Field label="Reason, kept in the activity log">
+                            <Input
+                              name="reason"
+                              defaultValue="No longer needed"
+                              data-max={LIMITS.reason}
+                            />
+                          </Field>
+                          <Button type="submit" variant="danger" size="sm">
+                            Cancel request
+                          </Button>
+                        </ValidatedForm>
+                      </details>
                     ) : null}
                   </div>
                 )}

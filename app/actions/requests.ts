@@ -288,3 +288,45 @@ export async function resendUploadLink(requestId: string) {
 
   revalidatePath(`/matters/${request.matter.id}`);
 }
+
+/**
+ * Withdraws a request the firm no longer needs.
+ *
+ * Allowed until the file is accepted. Every live upload link is revoked in the
+ * same transaction, so a link already in the client's inbox stops working at
+ * once; a file the client already sent stays in the matter, because nothing a
+ * client submitted is ever deleted.
+ */
+export async function cancelDocumentRequest(requestId: string, formData: FormData) {
+  const { actor } = await requireAdminActor();
+  const reason =
+    String(formData.get("reason") ?? "")
+      .trim()
+      .slice(0, LIMITS.reason) || "No longer needed";
+
+  const request = await loadRequest(requestId);
+  await assertMatterWritable(request.matter.id);
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    await transition(tx, requestId, ["PENDING", "CHANGES_REQUESTED", "SUBMITTED"], {
+      status: "CANCELLED",
+      cancelReason: reason,
+      resolvedAt: now,
+    });
+    await tx.secureLink.updateMany({
+      where: { documentRequestId: requestId, revokedAt: null, usedAt: null },
+      data: { revokedAt: now },
+    });
+    await tx.activityEvent.create({
+      data: {
+        matterId: request.matter.id,
+        type: "REQUEST",
+        summary: `Cancelled request for ${request.title}: ${reason}`,
+        ...actor,
+      },
+    });
+  });
+
+  revalidatePath(`/matters/${request.matter.id}`);
+}

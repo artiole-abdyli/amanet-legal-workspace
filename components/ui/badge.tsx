@@ -48,6 +48,7 @@ export const requestStatusTone: Record<string, Tone> = {
   SUBMITTED: "info",
   CHANGES_REQUESTED: "warn",
   ACCEPTED: "ok",
+  CANCELLED: "neutral",
 };
 
 export const signatureStatusTone: Record<string, Tone> = {

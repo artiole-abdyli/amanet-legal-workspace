@@ -14,6 +14,7 @@ export type UploadOutcome = { ok: true } | { ok: false; message: string };
 const MAX_BYTES = 20 * 1024 * 1024;
 
 class AlreadyAccepted extends Error {}
+class Cancelled extends Error {}
 
 /** A PDF always starts with these five bytes, whatever the file is named. */
 function looksLikePdf(bytes: Uint8Array) {
@@ -54,6 +55,9 @@ export async function submitClientUpload(
       ok: false,
       message: "Your lawyer has already accepted this document.",
     };
+  }
+  if (request.status === "CANCELLED") {
+    return { ok: false, message: "The firm cancelled this upload request." };
   }
 
   const file = formData.get("file");
@@ -97,6 +101,8 @@ export async function submitClientUpload(
         select: { status: true, submittedDocumentId: true },
       });
       if (current.status === "ACCEPTED") throw new AlreadyAccepted();
+      // Cancelled between the link check and the lock: the firm's decision wins.
+      if (current.status === "CANCELLED") throw new Cancelled();
 
       // A correction becomes the next version of the same document, so the
       // earlier file the client sent is never lost.
@@ -171,6 +177,9 @@ export async function submitClientUpload(
         ok: false,
         message: "Your lawyer has already accepted this document.",
       };
+    }
+    if (error instanceof Cancelled) {
+      return { ok: false, message: "The firm cancelled this upload request." };
     }
     throw error;
   }

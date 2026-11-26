@@ -60,6 +60,7 @@ enum DocumentRequestStatus {
   SUBMITTED
   CHANGES_REQUESTED
   ACCEPTED
+  CANCELLED
 }
 
 /// Forward-only while live: SENT -> VIEWED -> STARTED -> SIGNED.
@@ -267,6 +268,9 @@ model Document {
   matterId  String
   folder    DocumentFolder
   name      String
+  /// Archived files leave the library but keep every version: nothing a
+  /// client sent or signed is ever deleted.
+  archivedAt DateTime?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
@@ -320,6 +324,8 @@ model DocumentRequest {
   dueDate     DateTime?
   /// What the Admin asked to be corrected, shown to the client on the upload page.
   reviewNote  String?
+  /// Why the firm withdrew the request; set together with CANCELLED.
+  cancelReason String?
   /// The document the client uploaded. Kept when changes are requested: the new
   /// upload becomes the next version of this same document.
   submittedDocumentId String? @unique

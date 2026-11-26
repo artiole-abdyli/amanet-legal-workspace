@@ -61,6 +61,7 @@ export async function getSearchIndex() {
       select: { id: true, name: true, type: true },
     }),
     prisma.document.findMany({
+      where: { archivedAt: null },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -342,6 +343,7 @@ export async function getMatters(filters: MatterFilters = {}) {
             {
               documents: {
                 some: {
+                  archivedAt: null,
                   name: { contains: query, mode: "insensitive" as const },
                 },
               },
@@ -396,7 +398,7 @@ export async function getMatter(id: string) {
       keyDates: { orderBy: { date: "asc" } },
       _count: {
         select: {
-          documents: true,
+          documents: { where: { archivedAt: null } },
           documentRequests: true,
           signatureRequests: true,
           tasks: { where: { completedAt: null } },

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Icon } from "@/components/icons";
+import { DocumentMenu, RestoreDocumentButton } from "@/components/matters/document-menu";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, EmptyState } from "@/components/ui/card";
 import { VersionTag } from "@/components/ui/meta";
@@ -17,11 +18,13 @@ const FOLDER_ICON = {
 } as const;
 
 export async function DocumentsTab({ matterId }: { matterId: string }) {
-  const [matter, documents] = await Promise.all([
+  const [matter, allDocuments] = await Promise.all([
     getMatter(matterId),
     getMatterDocuments(matterId),
   ]);
   const archived = matter?.archivedAt !== null;
+  const documents = allDocuments.filter((doc) => doc.archivedAt === null);
+  const shelved = allDocuments.filter((doc) => doc.archivedAt !== null);
 
   return (
     <>
@@ -140,6 +143,13 @@ export async function DocumentsTab({ matterId }: { matterId: string }) {
                           >
                             <Icon name="download" className="size-4" />
                           </a>
+                          {archived ? null : (
+                            <DocumentMenu
+                              documentId={document.id}
+                              name={document.name}
+                              folder={document.folder}
+                            />
+                          )}
                         </span>
 
                         {document.versions.length > 1 ? (
@@ -183,6 +193,43 @@ export async function DocumentsTab({ matterId }: { matterId: string }) {
           })}
         </Card>
       )}
+
+      {shelved.length > 0 ? (
+        <details className="rounded-card border border-line bg-surface px-4 py-3">
+          <summary className="cursor-pointer text-[13px] font-semibold text-muted">
+            <Icon name="archive" className="mr-1.5 inline size-4 align-[-3px]" />
+            Archived documents ({shelved.length})
+          </summary>
+          <ul className="mt-2 flex flex-col">
+            {shelved.map((document) => {
+              const latest = document.versions[document.versions.length - 1];
+              return (
+                <li
+                  key={document.id}
+                  className="flex flex-wrap items-center gap-3 border-t border-line py-2.5"
+                >
+                  <span className="min-w-0 flex-1 basis-[220px]">
+                    <a
+                      href={`/api/documents/${latest.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-medium underline-offset-2 hover:text-accent hover:underline"
+                    >
+                      {document.name}
+                    </a>
+                    <small className="block text-[12.5px] text-muted">
+                      {folderLabel[document.folder]} · {document.versions.length}{" "}
+                      version{document.versions.length === 1 ? "" : "s"} · archived{" "}
+                      {formatDate(document.archivedAt!)}
+                    </small>
+                  </span>
+                  {archived ? null : <RestoreDocumentButton documentId={document.id} />}
+                </li>
+              );
+            })}
+          </ul>
+        </details>
+      ) : null}
     </>
   );
 }

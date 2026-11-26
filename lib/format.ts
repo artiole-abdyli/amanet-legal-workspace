@@ -146,6 +146,7 @@ export const requestStatusLabel = {
   SUBMITTED: "Needs review",
   CHANGES_REQUESTED: "Changes requested",
   ACCEPTED: "Accepted",
+  CANCELLED: "Cancelled",
 } as const;
 
 export const signatureStatusLabel = {
